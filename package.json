@@ -1,0 +1,29 @@
+{
+    "author": "Adam Boutcher & Jesse Hallett",
+    "dependencies": {},
+    "keywords": [],
+    "name": "fuzzy-text-int-l-2",
+    "pebble": {
+        "capabilities": [
+            "configurable"
+        ],
+        "displayName": "Fuzzy Text International 2",
+        "enableMultiJS": false,
+        "messageKeys": [],
+        "projectType": "native",
+        "resources": {
+            "media": []
+        },
+        "sdkVersion": "3",
+        "targetPlatforms": [
+            "aplite",
+            "basalt",
+            "diorite"
+        ],
+        "uuid": "88b9a785-1c45-4a56-837f-8c202e4f15bd",
+        "watchapp": {
+            "watchface": true
+        }
+    },
+    "version": "2.0.0"
+}
