@@ -37,6 +37,9 @@ static Language lang = EN_US;
 
 static Window *window;
 
+static GColor fg_color(void) { return invert ? GColorBlack : GColorWhite; }
+static GColor bg_color(void) { return invert ? GColorWhite : GColorBlack; }
+
 static int screen_width;
 static int screen_height;
 static int row_height;
@@ -51,7 +54,6 @@ typedef struct {
 } Line;
 
 static Line lines[NUM_LINES];
-static InverterLayer *inverter_layer;
 
 static struct tm *t;
 
@@ -165,7 +167,7 @@ static GTextAlignment lookup_text_alignment(int align_key)
 static void configureBoldLayer(TextLayer *textlayer)
 {
 	text_layer_set_font(textlayer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
-	text_layer_set_text_color(textlayer, GColorWhite);
+	text_layer_set_text_color(textlayer, fg_color());
 	text_layer_set_background_color(textlayer, GColorClear);
 	text_layer_set_text_alignment(textlayer, lookup_text_alignment(text_align));
 }
@@ -174,7 +176,7 @@ static void configureBoldLayer(TextLayer *textlayer)
 static void configureLightLayer(TextLayer *textlayer)
 {
 	text_layer_set_font(textlayer, fonts_get_system_font(FONT_KEY_BITHAM_42_LIGHT));
-	text_layer_set_text_color(textlayer, GColorWhite);
+	text_layer_set_text_color(textlayer, fg_color());
 	text_layer_set_background_color(textlayer, GColorClear);
 	text_layer_set_text_alignment(textlayer, lookup_text_alignment(text_align));
 }
@@ -463,8 +465,13 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 			persist_write_bool(INVERT_KEY, invert);
 			APP_LOG(APP_LOG_LEVEL_DEBUG, "Set invert: %u", invert ? 1 : 0);
 
-			layer_set_hidden(inverter_layer_get_layer(inverter_layer), !invert);
-			layer_mark_dirty(inverter_layer_get_layer(inverter_layer));
+			window_set_background_color(window, bg_color());
+			for (int j = 0; j < NUM_LINES; j++) {
+				text_layer_set_text_color(lines[j].currentLayer, fg_color());
+				text_layer_set_text_color(lines[j].nextLayer, fg_color());
+				layer_mark_dirty(text_layer_get_layer(lines[j].currentLayer));
+				layer_mark_dirty(text_layer_get_layer(lines[j].nextLayer));
+			}
 			break;
 		case LANGUAGE_KEY:
 			lang = (Language) new_tuple->value->uint8;
@@ -522,9 +529,7 @@ static void window_load(Window *window)
 		layer_add_child(window_layer, (Layer *)lines[i].nextLayer);
 	}
 
-	inverter_layer = inverter_layer_create(bounds);
-	layer_set_hidden(inverter_layer_get_layer(inverter_layer), !invert);
-	layer_add_child(window_layer, inverter_layer_get_layer(inverter_layer));
+	window_set_background_color(window, bg_color());
 
 	// Configure time on init
 	time_t raw_time;
@@ -548,7 +553,6 @@ static void window_unload(Window *window)
 	app_sync_deinit(&sync);
 
 	// Free layers
-	inverter_layer_destroy(inverter_layer);
 	for (int i = 0; i < NUM_LINES; i++)
 	{
 		destroy_line(&lines[i]);
@@ -574,7 +578,6 @@ static void handle_init() {
 	}
 
 	window = window_create();
-	window_set_background_color(window, GColorBlack);
 	window_set_window_handlers(window, (WindowHandlers) {
 		.load = window_load,
 		.unload = window_unload
