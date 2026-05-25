@@ -138,6 +138,10 @@ void time_to_words(Language lang, int hours, int minutes, int seconds, char* wor
   // We want to operate with a resolution of 30 seconds.  So multiply
   // minutes and seconds by 2.  Then divide by (2 * 5) to carve the hour
   // into five minute intervals.
+  // TODO: the seconds term is dead code - the tick handler uses MINUTE_UNIT
+  // so seconds is always 0. The 30-second resolution was never active.
+  // Consider simplifying to: int rel_index = ((minutes * 2 + 5) / 10) % 12;
+  // and dropping the seconds parameter from this function entirely.
   int half_mins  = (2 * minutes) + (seconds / 30);
   int rel_index  = ((half_mins + 5) / (2 * 5)) % 12;
   int hour_index;
