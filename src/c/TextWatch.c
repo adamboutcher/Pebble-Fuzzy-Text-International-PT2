@@ -541,9 +541,23 @@ static void destroy_line(Line* line)
 
 static void window_appear(Window *window)
 {
+	// Cancel any animations in progress (from background ticks while in menu)
+	for (int i = 0; i < NUM_LINES; i++) {
+		destroy_animation(&lines[i].animation1);
+		destroy_animation(&lines[i].animation2);
+	}
+
+	// Show current time immediately without animation
 	time_t now = time(NULL);
 	t_buf = *localtime(&now);
-	display_time(t);
+	display_initial_time(t);
+
+	// Reset all nextLayers off-screen so they don't overlap currentLayers
+	for (int i = 0; i < NUM_LINES; i++) {
+		GRect rect = layer_get_frame((Layer *)lines[i].nextLayer);
+		rect.origin.x = screen_width;
+		layer_set_frame((Layer *)lines[i].nextLayer, rect);
+	}
 }
 
 static void window_load(Window *window)
