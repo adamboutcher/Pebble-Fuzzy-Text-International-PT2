@@ -7,7 +7,6 @@
 #define NUM_LINES 4
 #define LINE_LENGTH 7
 #define BUFFER_SIZE (LINE_LENGTH + 2)
-#define ROW_HEIGHT 37
 #define TOP_MARGIN 10
 
 #define INVERT_KEY 0
@@ -38,9 +37,17 @@ static Language lang = EN_US;
 
 static Window *window;
 
+static GColor fg_color(void) { return invert ? GColorBlack : GColorWhite; }
+static GColor bg_color(void) { return invert ? GColorWhite : GColorBlack; }
+
+static int screen_width;
+static int screen_height;
+static int row_height;
+
 typedef struct {
 	TextLayer *currentLayer;
 	TextLayer *nextLayer;
+	TextLayer *outgoingLayer;
 	char lineStr1[BUFFER_SIZE];
 	char lineStr2[BUFFER_SIZE];
 	PropertyAnimation *animation1;
@@ -48,22 +55,44 @@ typedef struct {
 } Line;
 
 static Line lines[NUM_LINES];
-static InverterLayer *inverter_layer;
 
-static struct tm *t;
+static struct tm t_buf;
+static struct tm *t = &t_buf;
 
 static int currentNLines;
 
 static bool showTime = true;
 static int dateTimeout = 0;
 
-// Animation handler
+// Resets the outgoing layer off-screen and nulls both animation pointers on natural completion.
 static void animationStoppedHandler(struct Animation *animation, bool finished, void *context)
 {
-	TextLayer *current = (TextLayer *)context;
-	GRect rect = layer_get_frame((Layer *)current);
-	rect.origin.x = 144;
-	layer_set_frame((Layer *)current, rect);
+	Line *line = (Line *)context;
+	GRect rect = layer_get_frame((Layer *)line->outgoingLayer);
+	rect.origin.x = screen_width;
+	layer_set_frame((Layer *)line->outgoingLayer, rect);
+	if (finished) {
+		line->animation2 = NULL;
+	}
+}
+
+static void animationOutStoppedHandler(struct Animation *animation, bool finished, void *context)
+{
+	Line *line = (Line *)context;
+	if (finished) {
+		line->animation1 = NULL;
+	}
+}
+
+static void destroy_animation(PropertyAnimation **anim_ptr)
+{
+	if (*anim_ptr == NULL) return;
+	Animation *anim = property_animation_get_animation(*anim_ptr);
+	if (animation_is_scheduled(anim)) {
+		animation_unschedule(anim);
+	}
+	property_animation_destroy(*anim_ptr);
+	*anim_ptr = NULL;
 }
 
 // Animate line
@@ -72,40 +101,40 @@ static void makeAnimationsForLayer(Line *line, int delay)
 	TextLayer *current = line->currentLayer;
 	TextLayer *next = line->nextLayer;
 
-	// Destroy old animations
-	if (line->animation1 != NULL)
-	{
-		 property_animation_destroy(line->animation1);
-	}
-	if (line->animation2 != NULL)
-	{
-		 property_animation_destroy(line->animation2);
-	}
+	// Destroy old animations (no-op if already nulled by stopped handlers)
+	destroy_animation(&line->animation1);
+	destroy_animation(&line->animation2);
+
+	// Track which layer is sliding out so the stopped handler can reset it
+	line->outgoingLayer = current;
 
 	// Configure animation for current layer to move out
 	GRect rect = layer_get_frame((Layer *)current);
-	rect.origin.x =  -144;
+	rect.origin.x = -screen_width;
 	line->animation1 = property_animation_create_layer_frame((Layer *)current, NULL, &rect);
-	animation_set_duration(&line->animation1->animation, ANIMATION_DURATION);
-	animation_set_delay(&line->animation1->animation, delay);
-	animation_set_curve(&line->animation1->animation, AnimationCurveEaseIn); // Accelerate
+	Animation *anim1 = property_animation_get_animation(line->animation1);
+	animation_set_duration(anim1, ANIMATION_DURATION);
+	animation_set_delay(anim1, delay);
+	animation_set_curve(anim1, AnimationCurveEaseIn);
+	animation_set_handlers(anim1, (AnimationHandlers) {
+		.stopped = (AnimationStoppedHandler)animationOutStoppedHandler
+	}, line);
 
-	// Configure animation for current layer to move in
+	// Configure animation for next layer to move in
 	GRect rect2 = layer_get_frame((Layer *)next);
 	rect2.origin.x = 0;
 	line->animation2 = property_animation_create_layer_frame((Layer *)next, NULL, &rect2);
-	animation_set_duration(&line->animation2->animation, ANIMATION_DURATION);
-	animation_set_delay(&line->animation2->animation, delay + ANIMATION_OUT_IN_DELAY);
-	animation_set_curve(&line->animation2->animation, AnimationCurveEaseOut); // Deaccelerate
-
-	// Set a handler to rearrange layers after animation is finished
-	animation_set_handlers(&line->animation2->animation, (AnimationHandlers) {
+	Animation *anim2 = property_animation_get_animation(line->animation2);
+	animation_set_duration(anim2, ANIMATION_DURATION);
+	animation_set_delay(anim2, delay + ANIMATION_OUT_IN_DELAY);
+	animation_set_curve(anim2, AnimationCurveEaseOut);
+	animation_set_handlers(anim2, (AnimationHandlers) {
 		.stopped = (AnimationStoppedHandler)animationStoppedHandler
-	}, current);
+	}, line);
 
 	// Start the animations
-	animation_schedule(&line->animation1->animation);
-	animation_schedule(&line->animation2->animation);	
+	animation_schedule(anim1);
+	animation_schedule(anim2);
 }
 
 static void updateLayerText(TextLayer* layer, char* text)
@@ -162,7 +191,7 @@ static GTextAlignment lookup_text_alignment(int align_key)
 static void configureBoldLayer(TextLayer *textlayer)
 {
 	text_layer_set_font(textlayer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
-	text_layer_set_text_color(textlayer, GColorWhite);
+	text_layer_set_text_color(textlayer, fg_color());
 	text_layer_set_background_color(textlayer, GColorClear);
 	text_layer_set_text_alignment(textlayer, lookup_text_alignment(text_align));
 }
@@ -171,7 +200,7 @@ static void configureBoldLayer(TextLayer *textlayer)
 static void configureLightLayer(TextLayer *textlayer)
 {
 	text_layer_set_font(textlayer, fonts_get_system_font(FONT_KEY_BITHAM_42_LIGHT));
-	text_layer_set_text_color(textlayer, GColorWhite);
+	text_layer_set_text_color(textlayer, fg_color());
 	text_layer_set_background_color(textlayer, GColorClear);
 	text_layer_set_text_alignment(textlayer, lookup_text_alignment(text_align));
 }
@@ -202,13 +231,13 @@ static int configureLayersForText(char text[NUM_LINES][BUFFER_SIZE], char format
 	numLines = i;
 
 	// Calculate y position of top Line
-	int ypos = (168 - numLines * ROW_HEIGHT) / 2 - TOP_MARGIN;
+	int ypos = (screen_height - numLines * row_height) / 2 - TOP_MARGIN;
 
 	// Set y positions for the lines
 	for (int i = 0; i < numLines; i++)
 	{
-		layer_set_frame((Layer *)lines[i].nextLayer, GRect(144, ypos, 144, 50));
-		ypos += ROW_HEIGHT;
+		layer_set_frame((Layer *)lines[i].nextLayer, GRect(screen_width, ypos, screen_width, 50));
+		ypos += row_height;
 	}
 
 	return numLines;
@@ -373,8 +402,8 @@ static void display_initial_time(struct tm *t)
 // Time handler called every minute by the system
 static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed)
 {
-	t = tick_time;
-  
+	t_buf = *tick_time;
+
   if (!showTime) {
     dateTimeout++;
   }
@@ -460,8 +489,13 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 			persist_write_bool(INVERT_KEY, invert);
 			APP_LOG(APP_LOG_LEVEL_DEBUG, "Set invert: %u", invert ? 1 : 0);
 
-			layer_set_hidden(inverter_layer_get_layer(inverter_layer), !invert);
-			layer_mark_dirty(inverter_layer_get_layer(inverter_layer));
+			window_set_background_color(window, bg_color());
+			for (int j = 0; j < NUM_LINES; j++) {
+				text_layer_set_text_color(lines[j].currentLayer, fg_color());
+				text_layer_set_text_color(lines[j].nextLayer, fg_color());
+				layer_mark_dirty(text_layer_get_layer(lines[j].currentLayer));
+				layer_mark_dirty(text_layer_get_layer(lines[j].nextLayer));
+			}
 			break;
 		case LANGUAGE_KEY:
 			lang = (Language) new_tuple->value->uint8;
@@ -478,8 +512,8 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 static void init_line(Line* line)
 {
 	// Create layers with dummy position to the right of the screen
-	line->currentLayer = text_layer_create(GRect(144, 0, 144, 50));
-	line->nextLayer = text_layer_create(GRect(144, 0, 144, 50));
+	line->currentLayer = text_layer_create(GRect(screen_width, 0, screen_width, 50));
+	line->nextLayer = text_layer_create(GRect(screen_width, 0, screen_width, 50));
 
 	// Configure a style
 	configureLightLayer(line->currentLayer);
@@ -494,19 +528,45 @@ static void init_line(Line* line)
 	// Initially there are no animations
 	line->animation1 = NULL;
 	line->animation2 = NULL;
+	line->outgoingLayer = NULL;
 }
 
 static void destroy_line(Line* line)
 {
-	// Free layers
+	destroy_animation(&line->animation1);
+	destroy_animation(&line->animation2);
 	text_layer_destroy(line->currentLayer);
 	text_layer_destroy(line->nextLayer);
+}
+
+static void window_appear(Window *window)
+{
+	// Cancel any animations in progress (from background ticks while in menu)
+	for (int i = 0; i < NUM_LINES; i++) {
+		destroy_animation(&lines[i].animation1);
+		destroy_animation(&lines[i].animation2);
+	}
+
+	// Show current time immediately without animation
+	time_t now = time(NULL);
+	t_buf = *localtime(&now);
+	display_initial_time(t);
+
+	// Reset all nextLayers off-screen so they don't overlap currentLayers
+	for (int i = 0; i < NUM_LINES; i++) {
+		GRect rect = layer_get_frame((Layer *)lines[i].nextLayer);
+		rect.origin.x = screen_width;
+		layer_set_frame((Layer *)lines[i].nextLayer, rect);
+	}
 }
 
 static void window_load(Window *window)
 {
 	Layer *window_layer = window_get_root_layer(window);
 	GRect bounds = layer_get_frame(window_layer);
+	screen_width = bounds.size.w;
+	screen_height = bounds.size.h;
+	row_height = (screen_height > 168) ? 45 : 37;
 
 	// Init and load lines
 	for (int i = 0; i < NUM_LINES; i++)
@@ -516,15 +576,13 @@ static void window_load(Window *window)
 		layer_add_child(window_layer, (Layer *)lines[i].nextLayer);
 	}
 
-	inverter_layer = inverter_layer_create(bounds);
-	layer_set_hidden(inverter_layer_get_layer(inverter_layer), !invert);
-	layer_add_child(window_layer, inverter_layer_get_layer(inverter_layer));
+	window_set_background_color(window, bg_color());
 
 	// Configure time on init
 	time_t raw_time;
 
 	time(&raw_time);
-	t = localtime(&raw_time);
+	t_buf = *localtime(&raw_time);
 	display_initial_time(t);
 
 	Tuplet initial_values[] = {
@@ -542,7 +600,6 @@ static void window_unload(Window *window)
 	app_sync_deinit(&sync);
 
 	// Free layers
-	inverter_layer_destroy(inverter_layer);
 	for (int i = 0; i < NUM_LINES; i++)
 	{
 		destroy_line(&lines[i]);
@@ -568,10 +625,10 @@ static void handle_init() {
 	}
 
 	window = window_create();
-	window_set_background_color(window, GColorBlack);
 	window_set_window_handlers(window, (WindowHandlers) {
 		.load = window_load,
-		.unload = window_unload
+		.unload = window_unload,
+		.appear = window_appear
 	});
 
 	// Initialize message queue
