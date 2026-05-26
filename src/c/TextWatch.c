@@ -29,6 +29,8 @@
 // Delay from the start of the current layer going out until the next layer slides in
 #define ANIMATION_OUT_IN_DELAY 100
 
+#define LAYER_HEIGHT 70
+
 #define LINE_APPEND_MARGIN 0
 // We can add a new word to a line if there are at least this many characters free after
 #define LINE_APPEND_LIMIT (LINE_LENGTH - LINE_APPEND_MARGIN)
@@ -41,6 +43,9 @@ static bool invert = false;
 static Language lang = EN_US;
 static int font_size = FONT_SIZE_LARGE;
 
+static GFont custom_bold_font;
+static GFont custom_light_font;
+
 static Window *window;
 
 static int screen_width;
@@ -50,27 +55,28 @@ static int row_height;
 static GColor fg_color(void) { return invert ? GColorBlack : GColorWhite; }
 static GColor bg_color(void) { return invert ? GColorWhite : GColorBlack; }
 
+// Returns NULL for FONT_SIZE_LARGE, which uses a custom font resource.
 static const char* bold_font(void) {
 	switch (font_size) {
-		case FONT_SIZE_SMALL:  return FONT_KEY_GOTHIC_24_BOLD;
-		case FONT_SIZE_MEDIUM: return FONT_KEY_GOTHIC_28_BOLD;
-		default:               return FONT_KEY_BITHAM_42_BOLD;
+		case FONT_SIZE_SMALL:
+		case FONT_SIZE_MEDIUM: return FONT_KEY_BITHAM_42_BOLD;
+		default:               return NULL;
 	}
 }
 
 static const char* light_font(void) {
 	switch (font_size) {
-		case FONT_SIZE_SMALL:  return FONT_KEY_GOTHIC_24;
-		case FONT_SIZE_MEDIUM: return FONT_KEY_GOTHIC_28;
-		default:               return FONT_KEY_BITHAM_42_LIGHT;
+		case FONT_SIZE_SMALL:
+		case FONT_SIZE_MEDIUM: return FONT_KEY_BITHAM_42_LIGHT;
+		default:               return NULL;
 	}
 }
 
 static int compute_row_height(void) {
 	switch (font_size) {
-		case FONT_SIZE_SMALL:  return 28;
-		case FONT_SIZE_MEDIUM: return 34;
-		default:               return screen_height > 168 ? 45 : 37;
+		case FONT_SIZE_SMALL:  return 37;
+		case FONT_SIZE_MEDIUM: return screen_height > 168 ? 45 : 37;
+		default:               return screen_height > 168 ? 50 : 48;
 	}
 }
 
@@ -220,7 +226,8 @@ static GTextAlignment lookup_text_alignment(int align_key)
 // Configure bold line of text
 static void configureBoldLayer(TextLayer *textlayer)
 {
-	text_layer_set_font(textlayer, fonts_get_system_font(bold_font()));
+	const char *key = bold_font();
+	text_layer_set_font(textlayer, key ? fonts_get_system_font(key) : custom_bold_font);
 	text_layer_set_text_color(textlayer, fg_color());
 	text_layer_set_background_color(textlayer, GColorClear);
 	text_layer_set_text_alignment(textlayer, lookup_text_alignment(text_align));
@@ -229,7 +236,8 @@ static void configureBoldLayer(TextLayer *textlayer)
 // Configure light line of text
 static void configureLightLayer(TextLayer *textlayer)
 {
-	text_layer_set_font(textlayer, fonts_get_system_font(light_font()));
+	const char *key = light_font();
+	text_layer_set_font(textlayer, key ? fonts_get_system_font(key) : custom_light_font);
 	text_layer_set_text_color(textlayer, fg_color());
 	text_layer_set_background_color(textlayer, GColorClear);
 	text_layer_set_text_alignment(textlayer, lookup_text_alignment(text_align));
@@ -266,7 +274,7 @@ static int configureLayersForText(char text[NUM_LINES][BUFFER_SIZE], char format
 	// Set y positions for the lines
 	for (int i = 0; i < numLines; i++)
 	{
-		layer_set_frame((Layer *)lines[i].nextLayer, GRect(screen_width, ypos, screen_width, 50));
+		layer_set_frame((Layer *)lines[i].nextLayer, GRect(screen_width, ypos, screen_width, LAYER_HEIGHT));
 		ypos += row_height;
 	}
 
@@ -553,8 +561,8 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 static void init_line(Line* line)
 {
 	// Create layers with dummy position to the right of the screen
-	line->currentLayer = text_layer_create(GRect(screen_width, 0, screen_width, 50));
-	line->nextLayer = text_layer_create(GRect(screen_width, 0, screen_width, 50));
+	line->currentLayer = text_layer_create(GRect(screen_width, 0, screen_width, LAYER_HEIGHT));
+	line->nextLayer = text_layer_create(GRect(screen_width, 0, screen_width, LAYER_HEIGHT));
 
 	// Configure a style
 	configureLightLayer(line->currentLayer);
@@ -603,6 +611,9 @@ static void window_appear(Window *window)
 
 static void window_load(Window *window)
 {
+	custom_bold_font  = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_LARGE_BOLD_50));
+	custom_light_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_LARGE_LIGHT_50));
+
 	Layer *window_layer = window_get_root_layer(window);
 	GRect bounds = layer_get_frame(window_layer);
 	screen_width = bounds.size.w;
@@ -646,6 +657,9 @@ static void window_unload(Window *window)
 	{
 		destroy_line(&lines[i]);
 	}
+
+	fonts_unload_custom_font(custom_bold_font);
+	fonts_unload_custom_font(custom_light_font);
 }
 
 static void handle_init() {

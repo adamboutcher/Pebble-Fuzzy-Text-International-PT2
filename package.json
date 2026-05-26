@@ -12,7 +12,20 @@
         "messageKeys": [],
         "projectType": "native",
         "resources": {
-            "media": []
+            "media": [
+                {
+                    "type": "font",
+                    "name": "FONT_LARGE_BOLD_50",
+                    "file": "fonts/large_bold.ttf",
+                    "characterRegex": "[A-Za-z\\u00C0-\\u00FF ]"
+                },
+                {
+                    "type": "font",
+                    "name": "FONT_LARGE_LIGHT_50",
+                    "file": "fonts/large_light.ttf",
+                    "characterRegex": "[A-Za-z\\u00C0-\\u00FF ]"
+                }
+            ]
         },
         "sdkVersion": "3",
         "targetPlatforms": [
