@@ -56,7 +56,8 @@ typedef struct {
 
 static Line lines[NUM_LINES];
 
-static struct tm *t;
+static struct tm t_buf;
+static struct tm *t = &t_buf;
 
 static int currentNLines;
 
@@ -401,8 +402,8 @@ static void display_initial_time(struct tm *t)
 // Time handler called every minute by the system
 static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed)
 {
-	t = tick_time;
-  
+	t_buf = *tick_time;
+
   if (!showTime) {
     dateTimeout++;
   }
@@ -540,6 +541,8 @@ static void destroy_line(Line* line)
 
 static void window_appear(Window *window)
 {
+	time_t now = time(NULL);
+	t_buf = *localtime(&now);
 	display_time(t);
 }
 
@@ -565,7 +568,7 @@ static void window_load(Window *window)
 	time_t raw_time;
 
 	time(&raw_time);
-	t = localtime(&raw_time);
+	t_buf = *localtime(&raw_time);
 	display_initial_time(t);
 
 	Tuplet initial_values[] = {
