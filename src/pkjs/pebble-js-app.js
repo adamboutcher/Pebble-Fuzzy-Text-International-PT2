@@ -9,7 +9,17 @@ var alignments = {
   right:  2
 };
 
-// langs is generated at build time from the Language enum in src/c/num2words.h
+// langs values must match the Language enum in src/c/num2words.h
+var langs = {
+  ca:    0,
+  de:    1,
+  en_GB: 2,
+  en_US: 3,
+  es:    4,
+  fr:    5,
+  no:    6,
+  sv:    7
+};
 
 var fontSizes = {
   small:  0,
@@ -17,7 +27,7 @@ var fontSizes = {
   large:  2
 };
 
-// configHTML is defined in config-html.js, generated from src/pkjs/config.html at build time.
+// configHTML is defined in config-html.js — edit config.html then update that file to match.
 
 function readyCallback(event) {
   isReady = true;
