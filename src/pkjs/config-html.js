@@ -21,7 +21,7 @@ var configHTML = [
   '    <fieldset><legend>Date display:</legend>',
   '      <select name="date_trigger" class="form-control input-lg">',
   '        <option value="shake">Shake / wrist flick</option>',
-  '        <option value="button">Back button</option>',
+  '        <option value="button">Select button</option>',
   '        <option value="both">Both</option>',
   '        <option value="disabled">Disabled</option>',
   '      </select>',

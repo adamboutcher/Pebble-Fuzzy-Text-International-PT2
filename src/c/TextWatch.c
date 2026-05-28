@@ -422,7 +422,7 @@ static void back_button_handler(ClickRecognizerRef recognizer, void *context)
 
 static void date_click_config_provider(void *context)
 {
-  window_single_click_subscribe(BUTTON_ID_BACK, back_button_handler);
+  window_single_click_subscribe(BUTTON_ID_SELECT, back_button_handler);
 }
 
 static void apply_date_trigger(void)
