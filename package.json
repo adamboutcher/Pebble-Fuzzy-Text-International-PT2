@@ -1,6 +1,8 @@
 {
     "author": "Adam Boutcher",
-    "dependencies": {},
+    "dependencies": {
+        "pebble-clay": "^1.0.4"
+    },
     "keywords": [],
     "name": "fuzzy-text-int-l-2",
     "pebble": {
@@ -8,8 +10,15 @@
             "configurable"
         ],
         "displayName": "Fuzzy Text International 2",
-        "enableMultiJS": false,
-        "messageKeys": [],
+        "enableMultiJS": true,
+        "messageKeys": [
+            "INVERT_KEY",
+            "TEXT_ALIGN_KEY",
+            "LANGUAGE_KEY",
+            "FONT_SIZE_KEY",
+            "SHOW_DATE_KEY",
+            "DATE_TIMEOUT_KEY"
+        ],
         "projectType": "native",
         "resources": {
             "media": [
