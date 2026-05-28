@@ -4,6 +4,12 @@
 
 #define DEBUG 0
 
+#if DEBUG
+#define DBG(fmt, ...) DBG(fmt, ##__VA_ARGS__)
+#else
+#define DBG(fmt, ...)
+#endif
+
 #define NUM_LINES 4
 #define LINE_LENGTH 7
 #define BUFFER_SIZE (LINE_LENGTH + 2)
@@ -401,7 +407,6 @@ static void display_time(struct tm *t)
 
 static void tap_handler(AccelAxisType axis, int32_t direction)
 {
-  if (!show_date) return;
   showTime = !showTime;
   display_time(t);
 }
@@ -505,7 +510,7 @@ static void click_config_provider(ClickConfig **config, Window *window) {
 
 static void sync_error_callback(DictionaryResult dict_error, AppMessageResult app_message_error, void *context)
 {
-	APP_LOG(APP_LOG_LEVEL_DEBUG, "App Message Sync Error: %d", app_message_error);
+	DBG("App Message Sync Error: %d", app_message_error);
 }
 
 static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tuple, const Tuple* old_tuple, void* context) {
@@ -514,7 +519,7 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 		case TEXT_ALIGN_KEY:
 			text_align = new_tuple->value->uint8;
 			persist_write_int(TEXT_ALIGN_KEY, text_align);
-			APP_LOG(APP_LOG_LEVEL_DEBUG, "Set text alignment: %u", text_align);
+			DBG("Set text alignment: %u", text_align);
 
 			alignment = lookup_text_alignment(text_align);
 			for (int i = 0; i < NUM_LINES; i++)
@@ -528,7 +533,7 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 		case INVERT_KEY:
 			invert = new_tuple->value->uint8 == 1;
 			persist_write_bool(INVERT_KEY, invert);
-			APP_LOG(APP_LOG_LEVEL_DEBUG, "Set invert: %u", invert ? 1 : 0);
+			DBG("Set invert: %u", invert ? 1 : 0);
 
 			window_set_background_color(window, bg_color());
 			for (int j = 0; j < NUM_LINES; j++) {
@@ -541,7 +546,7 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 		case LANGUAGE_KEY:
 			lang = (Language) new_tuple->value->uint8;
 			persist_write_int(LANGUAGE_KEY, lang);
-			APP_LOG(APP_LOG_LEVEL_DEBUG, "Set language: %u", lang);
+			DBG("Set language: %u", lang);
 
 			if (t)
 			{
@@ -551,7 +556,7 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 		case FONT_SIZE_KEY:
 			font_size = new_tuple->value->uint8;
 			persist_write_int(FONT_SIZE_KEY, font_size);
-			APP_LOG(APP_LOG_LEVEL_DEBUG, "Set font size: %u", font_size);
+			DBG("Set font size: %u", font_size);
 
 			row_height = compute_row_height();
 			for (int i = 0; i < NUM_LINES; i++) {
@@ -570,10 +575,15 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 		case SHOW_DATE_KEY:
 			show_date = new_tuple->value->uint8 == 1;
 			persist_write_bool(SHOW_DATE_KEY, show_date);
-			APP_LOG(APP_LOG_LEVEL_DEBUG, "Set show date: %u", show_date ? 1 : 0);
-			if (!show_date && !showTime) {
-				showTime = true;
-				display_time(t);
+			DBG("Set show date: %u", show_date ? 1 : 0);
+			if (show_date) {
+				accel_tap_service_subscribe(tap_handler);
+			} else {
+				accel_tap_service_unsubscribe();
+				if (!showTime) {
+					showTime = true;
+					display_time(t);
+				}
 			}
 			break;
 	}
@@ -689,27 +699,27 @@ static void handle_init() {
 	if (persist_exists(TEXT_ALIGN_KEY))
 	{
 		text_align = persist_read_int(TEXT_ALIGN_KEY);
-		APP_LOG(APP_LOG_LEVEL_DEBUG, "Read text alignment from store: %u", text_align);
+		DBG("Read text alignment from store: %u", text_align);
 	}
 	if (persist_exists(INVERT_KEY))
 	{
 		invert = persist_read_bool(INVERT_KEY);
-		APP_LOG(APP_LOG_LEVEL_DEBUG, "Read invert from store: %u", invert ? 1 : 0);
+		DBG("Read invert from store: %u", invert ? 1 : 0);
 	}
 	if (persist_exists(LANGUAGE_KEY))
 	{
 		lang = (Language) persist_read_int(LANGUAGE_KEY);
-		APP_LOG(APP_LOG_LEVEL_DEBUG, "Read language from store: %u", lang);
+		DBG("Read language from store: %u", lang);
 	}
 	if (persist_exists(FONT_SIZE_KEY))
 	{
 		font_size = persist_read_int(FONT_SIZE_KEY);
-		APP_LOG(APP_LOG_LEVEL_DEBUG, "Read font size from store: %u", font_size);
+		DBG("Read font size from store: %u", font_size);
 	}
 	if (persist_exists(SHOW_DATE_KEY))
 	{
 		show_date = persist_read_bool(SHOW_DATE_KEY);
-		APP_LOG(APP_LOG_LEVEL_DEBUG, "Read show date from store: %u", show_date ? 1 : 0);
+		DBG("Read show date from store: %u", show_date ? 1 : 0);
 	}
 
 	window = window_create();
@@ -727,8 +737,9 @@ static void handle_init() {
 	const bool animated = true;
 	window_stack_push(window, animated);
   
-  accel_service_set_sampling_rate(ACCEL_SAMPLING_10HZ);
-  accel_tap_service_subscribe(tap_handler);
+	if (show_date) {
+		accel_tap_service_subscribe(tap_handler);
+	}
 
 	// Subscribe to minute ticks
 	tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
