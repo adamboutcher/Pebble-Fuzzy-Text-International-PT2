@@ -24,7 +24,7 @@ var configHTML = [
   '      </label></div>',
   '    </fieldset>',
 
-  '    <fieldset><legend>&#8987; Date view timeout</legend>',
+  '    <fieldset><legend>&#9684; Date view timeout</legend>',
   '      <div class="radio"><label><input type="radio" name="date_timeout" value="3s"> 3 seconds</label></div>',
   '      <div class="radio"><label><input type="radio" name="date_timeout" value="5s"> 5 seconds</label></div>',
   '      <div class="radio"><label><input type="radio" name="date_timeout" value="8s"> 8 seconds</label></div>',
@@ -44,7 +44,7 @@ var configHTML = [
   '      <div class="radio"><label><input type="radio" name="font_size" value="small"> S &mdash; Small</label></div>',
   '    </fieldset>',
 
-  '    <fieldset><legend>&#9760; Language</legend>',
+  '    <fieldset><legend>&#8853; Language</legend>',
   '      <select name="lang" class="form-control input-lg">',
   '        <option value="ca">Catal&#224;</option>',
   '        <option value="de">Deutsch</option>',
