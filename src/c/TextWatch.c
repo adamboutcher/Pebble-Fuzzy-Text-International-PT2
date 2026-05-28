@@ -392,22 +392,6 @@ static void cancel_date_timer(void)
 	}
 }
 
-static void date_timer_callback(void *context)
-{
-	date_timer = NULL;
-	showTime = true;
-	display_time(t);
-}
-
-static void start_date_timer(void)
-{
-	cancel_date_timer();
-	uint32_t ms = DATE_TIMEOUT_MS[date_timeout_idx];
-	if (ms > 0) {
-		date_timer = app_timer_register(ms, date_timer_callback, NULL);
-	}
-}
-
 // Update screen based on new time
 static void display_time(struct tm *t)
 {
@@ -431,6 +415,22 @@ static void display_time(struct tm *t)
 	}
 
 	currentNLines = nextNLines;
+}
+
+static void date_timer_callback(void *context)
+{
+	date_timer = NULL;
+	showTime = true;
+	display_time(t);
+}
+
+static void start_date_timer(void)
+{
+	cancel_date_timer();
+	uint32_t ms = DATE_TIMEOUT_MS[date_timeout_idx];
+	if (ms > 0) {
+		date_timer = app_timer_register(ms, date_timer_callback, NULL);
+	}
 }
 
 static void tap_handler(AccelAxisType axis, int32_t direction)
