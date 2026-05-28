@@ -5,7 +5,7 @@
 #define DEBUG 0
 
 #if DEBUG
-#define DBG(fmt, ...) DBG(fmt, ##__VA_ARGS__)
+#define DBG(fmt, ...) APP_LOG(APP_LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
 #else
 #define DBG(fmt, ...)
 #endif
@@ -19,7 +19,14 @@
 #define TEXT_ALIGN_KEY 1
 #define LANGUAGE_KEY 2
 #define FONT_SIZE_KEY 3
-#define SHOW_DATE_KEY  4
+#define SHOW_DATE_KEY     4
+#define DATE_TIMEOUT_KEY  5
+
+// Indices into DATE_TIMEOUT_MS[]; 0 = never auto-revert.
+#define DATE_TIMEOUT_NEVER   4
+#define DATE_TIMEOUT_DEFAULT 3  // 1 minute
+
+static const uint32_t DATE_TIMEOUT_MS[] = { 3000, 5000, 8000, 60000, 0 };
 
 #define FONT_SIZE_SMALL  0
 #define FONT_SIZE_MEDIUM 1
@@ -50,6 +57,9 @@ static bool invert = false;
 static Language lang = EN_US;
 static int font_size = FONT_SIZE_LARGE;
 static bool show_date = true;
+static int date_timeout_idx = DATE_TIMEOUT_DEFAULT;
+
+static AppTimer *date_timer = NULL;
 
 static GFont custom_bold_font;
 static GFont custom_light_font;
@@ -106,8 +116,6 @@ static struct tm *t = &t_buf;
 static int currentNLines;
 
 static bool showTime = true;
-// Minutes elapsed while showing date; auto-reverts to time after 2 ticks.
-static int dateTimeout = 0;
 
 // Resets the outgoing layer off-screen and nulls both animation pointers on natural completion.
 static void animationStoppedHandler(struct Animation *animation, bool finished, void *context)
@@ -376,16 +384,38 @@ static void date_to_lines(int day, int date, int month, char lines[NUM_LINES][BU
 	}
 }
 
+static void cancel_date_timer(void)
+{
+	if (date_timer) {
+		app_timer_cancel(date_timer);
+		date_timer = NULL;
+	}
+}
+
+static void date_timer_callback(void *context)
+{
+	date_timer = NULL;
+	showTime = true;
+	display_time(t);
+}
+
+static void start_date_timer(void)
+{
+	cancel_date_timer();
+	uint32_t ms = DATE_TIMEOUT_MS[date_timeout_idx];
+	if (ms > 0) {
+		date_timer = app_timer_register(ms, date_timer_callback, NULL);
+	}
+}
+
 // Update screen based on new time
 static void display_time(struct tm *t)
 {
 	char textLine[NUM_LINES][BUFFER_SIZE];
 	char format[NUM_LINES];
 
-	if (showTime || dateTimeout > 1) {
+	if (showTime) {
 		time_to_lines(t->tm_hour, t->tm_min, t->tm_sec, textLine, format);
-		dateTimeout = 0;
-		showTime = true;
 	} else {
 		date_to_lines(t->tm_wday, t->tm_mday, t->tm_mon, textLine, format);
 	}
@@ -406,6 +436,11 @@ static void display_time(struct tm *t)
 static void tap_handler(AccelAxisType axis, int32_t direction)
 {
 	showTime = !showTime;
+	if (!showTime) {
+		start_date_timer();
+	} else {
+		cancel_date_timer();
+	}
 	display_time(t);
 }
 
@@ -447,11 +482,6 @@ static void display_initial_time(struct tm *t)
 static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed)
 {
 	t_buf = *tick_time;
-
-  if (!showTime) {
-    dateTimeout++;
-  }
-  
 	display_time(tick_time);
 }
 
@@ -578,11 +608,19 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 				accel_tap_service_subscribe(tap_handler);
 			} else {
 				accel_tap_service_unsubscribe();
+				cancel_date_timer();
 				if (!showTime) {
 					showTime = true;
 					display_time(t);
 				}
 			}
+			break;
+		case DATE_TIMEOUT_KEY:
+			date_timeout_idx = new_tuple->value->uint8;
+			persist_write_int(DATE_TIMEOUT_KEY, date_timeout_idx);
+			DBG("Set date timeout: %u", date_timeout_idx);
+			// Cancel any running timer; new timeout applies from the next shake.
+			cancel_date_timer();
 			break;
 	}
 }
@@ -619,6 +657,10 @@ static void destroy_line(Line* line)
 
 static void window_appear(Window *window)
 {
+	// Always return to time view on re-appear and cancel any pending date timer.
+	cancel_date_timer();
+	showTime = true;
+
 	// Cancel any animations in progress (from background ticks while in menu)
 	for (int i = 0; i < NUM_LINES; i++) {
 		destroy_animation(&lines[i].animation1);
@@ -667,11 +709,12 @@ static void window_load(Window *window)
 	display_initial_time(t);
 
 	Tuplet initial_values[] = {
-		TupletInteger(TEXT_ALIGN_KEY, (uint8_t) text_align),
-		TupletInteger(INVERT_KEY,     (uint8_t) invert ? 1 : 0),
-		TupletInteger(LANGUAGE_KEY,   (uint8_t) lang),
-		TupletInteger(FONT_SIZE_KEY,  (uint8_t) font_size),
-		TupletInteger(SHOW_DATE_KEY,  (uint8_t) show_date ? 1 : 0)
+		TupletInteger(TEXT_ALIGN_KEY,    (uint8_t) text_align),
+		TupletInteger(INVERT_KEY,        (uint8_t) invert ? 1 : 0),
+		TupletInteger(LANGUAGE_KEY,      (uint8_t) lang),
+		TupletInteger(FONT_SIZE_KEY,     (uint8_t) font_size),
+		TupletInteger(SHOW_DATE_KEY,     (uint8_t) show_date ? 1 : 0),
+		TupletInteger(DATE_TIMEOUT_KEY,  (uint8_t) date_timeout_idx)
 	};
 
 	app_sync_init(&sync, sync_buffer, sizeof(sync_buffer), initial_values, ARRAY_LENGTH(initial_values),
@@ -681,6 +724,7 @@ static void window_load(Window *window)
 static void window_unload(Window *window)
 {
 	app_sync_deinit(&sync);
+	cancel_date_timer();
 
 	// Free layers
 	for (int i = 0; i < NUM_LINES; i++)
@@ -718,6 +762,11 @@ static void handle_init() {
 	{
 		show_date = persist_read_bool(SHOW_DATE_KEY);
 		DBG("Read show date from store: %u", show_date ? 1 : 0);
+	}
+	if (persist_exists(DATE_TIMEOUT_KEY))
+	{
+		date_timeout_idx = persist_read_int(DATE_TIMEOUT_KEY);
+		DBG("Read date timeout from store: %u", date_timeout_idx);
 	}
 
 	window = window_create();

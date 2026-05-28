@@ -27,6 +27,14 @@ var fontSizes = {
   large:  2
 };
 
+var dateTimeouts = {
+  '3s':    0,
+  '5s':    1,
+  '8s':    2,
+  '1min':  3,
+  'never': 4
+};
+
 
 // configHTML is defined in config-html.js — edit that file to change the settings UI.
 
@@ -54,11 +62,12 @@ function webviewclosed(event) {
   console.log('configuration response: ' + resp + ' (' + typeof resp + ')');
 
   var options = JSON.parse(resp);
-  if (typeof options.invert     === 'undefined' &&
-      typeof options.show_date  === 'undefined' &&
-      typeof options.text_align === 'undefined' &&
-      typeof options.font_size  === 'undefined' &&
-      typeof options.lang       === 'undefined') {
+  if (typeof options.invert        === 'undefined' &&
+      typeof options.show_date     === 'undefined' &&
+      typeof options.date_timeout  === 'undefined' &&
+      typeof options.text_align    === 'undefined' &&
+      typeof options.font_size     === 'undefined' &&
+      typeof options.lang          === 'undefined') {
     return;
   }
 
@@ -83,7 +92,8 @@ function prepareConfiguration(serialized_settings) {
     '1': alignments[settings.text_align] || 0,
     '2': langs[settings.lang] !== undefined ? langs[settings.lang] : langs.en_US,
     '3': fontSizes[settings.font_size] !== undefined ? fontSizes[settings.font_size] : fontSizes.large,
-    '4': (settings.show_date === false || settings.show_date === 'no') ? 0 : 1
+    '4': (settings.show_date === false || settings.show_date === 'no') ? 0 : 1,
+    '5': dateTimeouts[settings.date_timeout] !== undefined ? dateTimeouts[settings.date_timeout] : dateTimeouts['1min']
   };
 }
 
