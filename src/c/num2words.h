@@ -16,5 +16,6 @@ typedef enum {
 
 void time_to_words(Language lang, int hours, int minutes, int seconds, char* words, size_t length);
 void date_to_words(Language lang, int day, int date, int month, char* words, size_t length);
+const char* get_date_suffix(Language lang, int date);
 
 char * itoa10(int value, char *result);
