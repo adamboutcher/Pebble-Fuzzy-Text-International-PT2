@@ -243,10 +243,12 @@ static void format_date_string(char* buffer, size_t length,
   }
 }
 
-void date_to_words(Language lang, int day, int date, int month, char* words, size_t buffer_size) {
+void date_to_words(Language lang, int day, int date, int month, char* words, size_t buffer_size, bool show_suffix) {
   char date_str[6];
   itoa10(date, date_str);
-  strncat(date_str, get_date_suffix(lang, date), sizeof(date_str) - strlen(date_str) - 1);
+  if (show_suffix) {
+    strncat(date_str, get_date_suffix(lang, date), sizeof(date_str) - strlen(date_str) - 1);
+  }
 
   format_date_string(words, buffer_size,
                      get_date_format(lang),

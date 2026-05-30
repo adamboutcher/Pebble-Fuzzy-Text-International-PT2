@@ -66,6 +66,7 @@ function webviewclosed(event) {
   var options = JSON.parse(resp);
   if (typeof options.invert        === 'undefined' &&
       typeof options.show_date     === 'undefined' &&
+      typeof options.date_suffix   === 'undefined' &&
       typeof options.date_timeout  === 'undefined' &&
       typeof options.text_align    === 'undefined' &&
       typeof options.font_size     === 'undefined' &&
@@ -95,7 +96,8 @@ function prepareConfiguration(serialized_settings) {
     '2': langs[settings.lang] !== undefined ? langs[settings.lang] : langs.en_US,
     '3': fontSizes[settings.font_size] !== undefined ? fontSizes[settings.font_size] : fontSizes.medium,
     '4': (settings.show_date === false || settings.show_date === 'no') ? 0 : 1,
-    '5': dateTimeouts[settings.date_timeout] !== undefined ? dateTimeouts[settings.date_timeout] : dateTimeouts['1min']
+    '5': dateTimeouts[settings.date_timeout] !== undefined ? dateTimeouts[settings.date_timeout] : dateTimeouts['1min'],
+    '6': (settings.date_suffix === false || settings.date_suffix === 'no') ? 0 : 1
   };
 }
 
