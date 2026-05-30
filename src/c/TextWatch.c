@@ -60,7 +60,7 @@ static Language lang = EN_US;
 static int font_size = FONT_SIZE_MEDIUM;
 static bool show_date = true;
 static int date_timeout_idx = DATE_TIMEOUT_DEFAULT;
-static bool date_suffix = true;
+static bool date_suffix = false;
 
 static AppTimer *date_timer = NULL;
 

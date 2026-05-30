@@ -26,7 +26,7 @@ var configHTML = [
 
   '    <fieldset><legend>&#186; Date ordinals (1st, 2nd, 3rd)</legend>',
   '      <div class="checkbox"><label>',
-  '        <input type="checkbox" name="date_suffix" value="yes" checked> Enable',
+  '        <input type="checkbox" name="date_suffix" value="yes"> Enable',
   '      </label></div>',
   '    </fieldset>',
 
