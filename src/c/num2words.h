@@ -1,5 +1,6 @@
 #pragma once
 #include "string.h"
+#include <stdbool.h>
 
 typedef enum {
   CA    = 0x0,  /* ca    | Català                  */
