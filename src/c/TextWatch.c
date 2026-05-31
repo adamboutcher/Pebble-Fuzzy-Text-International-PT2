@@ -22,7 +22,6 @@
 #define FONT_SIZE_KEY 3
 #define SHOW_DATE_KEY     4
 #define DATE_TIMEOUT_KEY  5
-#define DATE_SUFFIX_KEY   6
 
 // Indices into DATE_TIMEOUT_MS[]; 0 = never auto-revert.
 #define DATE_TIMEOUT_NEVER   4
@@ -60,7 +59,6 @@ static Language lang = EN_US;
 static int font_size = FONT_SIZE_MEDIUM;
 static bool show_date = true;
 static int date_timeout_idx = DATE_TIMEOUT_DEFAULT;
-static bool date_suffix = false;
 
 static AppTimer *date_timer = NULL;
 
@@ -364,7 +362,7 @@ static void date_to_lines(int day, int date, int month, char lines[NUM_LINES][BU
 	}
   format[0] = 'b';
   
-  date_to_words(lang, day, date, month, dateStr, length, date_suffix);
+  date_to_words(lang, day, date, month, dateStr, length);
   
   char *start = dateStr;
 	char *end = strstr(start, " ");
@@ -648,14 +646,6 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 			// Cancel any running timer; new timeout applies from the next shake.
 			cancel_date_timer();
 			break;
-		case DATE_SUFFIX_KEY:
-			date_suffix = new_tuple->value->uint8 == 1;
-			persist_write_bool(DATE_SUFFIX_KEY, date_suffix);
-			DBG("Set date suffix: %u", date_suffix ? 1 : 0);
-			if (!showTime) {
-				display_time(t);
-			}
-			break;
 	}
 }
 
@@ -748,8 +738,7 @@ static void window_load(Window *window)
 		TupletInteger(LANGUAGE_KEY,      (uint8_t) lang),
 		TupletInteger(FONT_SIZE_KEY,     (uint8_t) font_size),
 		TupletInteger(SHOW_DATE_KEY,     (uint8_t) show_date ? 1 : 0),
-		TupletInteger(DATE_TIMEOUT_KEY,  (uint8_t) date_timeout_idx),
-		TupletInteger(DATE_SUFFIX_KEY,   (uint8_t) date_suffix ? 1 : 0)
+		TupletInteger(DATE_TIMEOUT_KEY,  (uint8_t) date_timeout_idx)
 	};
 
 	app_sync_init(&sync, sync_buffer, sizeof(sync_buffer), initial_values, ARRAY_LENGTH(initial_values),
@@ -802,11 +791,6 @@ static void handle_init() {
 	{
 		date_timeout_idx = persist_read_int(DATE_TIMEOUT_KEY);
 		DBG("Read date timeout from store: %u", date_timeout_idx);
-	}
-	if (persist_exists(DATE_SUFFIX_KEY))
-	{
-		date_suffix = persist_read_bool(DATE_SUFFIX_KEY);
-		DBG("Read date suffix from store: %u", date_suffix ? 1 : 0);
 	}
 
 	window = window_create();
