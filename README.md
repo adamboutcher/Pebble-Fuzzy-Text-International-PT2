@@ -94,7 +94,7 @@ To add a new language:
 Please [open an issue][issue] to request a translation, report an error, or discuss anything else.
 Pull requests are welcome.
 
-[issue]: https://github.com/adamboutcher/Fuzzy-Text-International-PT2/issues/new
+[issue]: https://github.com/adamboutcher/Pebble-Fuzzy-Text-International-PT2/issues/new
 
 
 Authors
