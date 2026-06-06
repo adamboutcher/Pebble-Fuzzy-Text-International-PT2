@@ -14,6 +14,7 @@ Features
 
 - Fuzzy time in natural language across ten languages
 - Large, easy-to-read fonts with smooth staggered animations
+- Supports all Pebble models including higher resolution screens such as the Pebble Time 2
 - Between one and four lines of text, adapting to what fits
 - Shake to show the date, with a configurable auto-revert timeout
 - Ordinal date suffixes for English (GB): 1st, 2nd, 3rd…
