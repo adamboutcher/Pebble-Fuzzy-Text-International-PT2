@@ -37,18 +37,16 @@ All settings are configurable from the Pebble app on your phone:
 Languages
 ---------
 
-| Code | Language |
-|---|---|
-| ca | Català |
-| de | Deutsch |
-| en_GB | English (Great Britain) |
-| en_US | English (United States) |
-| es | Español |
-| fr | Français |
-| nl | Nederlands |
-| no | Norsk |
-| pt | Português |
-| sv | Svenska |
+- Català
+- Deutsch
+- English (Great Britain)
+- English (United States)
+- Español
+- Français
+- Nederlands
+- Norsk
+- Português
+- Svenska
 
 
 Contributing a Translation
