@@ -1,7 +1,7 @@
 Fuzzy Text International 2
 ==========================
 
-A watchface for [Pebble][] that displays the time as natural language — "quarter past three", "half past ten" — in your choice of language and visual style.
+A watchface for [Pebble][] that displays the time as natural language - "quarter past three", "half past ten" - in your choice of language and visual style.
 
 Originally based on [PebbleTextWatch][] by Mihai Dumitrache, with fuzzy time and Swedish support added by [Mattias Bäcklund][Mattias], and multi-language configuration by [Jesse Hallett][Jesse]. This fork extends that work with additional languages, user experience improvements, and a cleaner architecture for contributors.
 
@@ -55,7 +55,7 @@ Contributing a Translation
 
 To add a new language:
 
-1. **Create `src/c/strings-XX.h`** — declare the arrays and suffix function:
+1. **Create `src/c/strings-XX.h`** - declare the arrays and suffix function:
    ```c
    #pragma once
    extern const char* const HOURS_XX[24];
@@ -63,7 +63,7 @@ To add a new language:
    const char* date_suffix_XX(int date);
    ```
 
-2. **Create `src/c/strings-XX.c`** — define 24 hour names, 12 relative-time phrases, and a suffix function (return `""` if your language doesn't use ordinal suffixes):
+2. **Create `src/c/strings-XX.c`** - define 24 hour names, 12 relative-time phrases, and a suffix function (return `""` if your language doesn't use ordinal suffixes):
    ```c
    #include "strings-XX.h"
    const char* const HOURS_XX[] = { /* 12 AM + 12 PM hour names */ };
@@ -75,7 +75,7 @@ To add a new language:
    ```
    In the `RELS_XX` phrases, `$1` is replaced with the current hour and `$2` with the next. A `*` prefix makes that word bold.
 
-3. **Register the language in `src/c/num2words.h`** — add one row to `ALL_LANGUAGES` with a unique integer value:
+3. **Register the language in `src/c/num2words.h`** - add one row to `ALL_LANGUAGES` with a unique integer value:
    ```c
    X(XX, 0xN)
    ```
@@ -85,7 +85,7 @@ To add a new language:
    #include "strings-XX.h"
    ```
 
-5. **Wire up the JS side** — add the language to `src/pkjs/pebble-js-app.js`:
+5. **Wire up the JS side** - add the language to `src/pkjs/pebble-js-app.js`:
    ```javascript
    xx: N
    ```
@@ -100,10 +100,10 @@ Pull requests are welcome.
 Authors
 -------
 
-- [Mihai Dumitrache][Mihai] — original open-source Text Watch
-- [Mattias Bäcklund][Mattias] — Swedish fuzzy text watch
-- [Jesse Hallett][Jesse] — configuration options and multi-language support
-- [Adam Boutcher][Adam] — this fork: additional languages, UX improvements, and contributor architecture
+- [Mihai Dumitrache][Mihai] - original open-source Text Watch
+- [Mattias Bäcklund][Mattias] - Swedish fuzzy text watch
+- [Jesse Hallett][Jesse] - configuration options and multi-language support
+- [Adam Boutcher][Adam] - this fork: additional languages, UX improvements, and contributor architecture
 
 [Mihai]: https://github.com/mmdumi
 [Mattias]: https://github.com/Sarastro72
@@ -114,8 +114,8 @@ Authors
 Contributors
 ------------
 
-- [Filip Horvei][iFlips] — Norwegian translation
-- Tomi De Lucca — iOS bug fix and Spanish translation assistance
-- nighto — Portuguese translation
+- [Filip Horvei][iFlips] - Norwegian translation
+- Tomi De Lucca - iOS bug fix and Spanish translation assistance
+- nighto - Portuguese translation
 
 [iFlips]: https://github.com/iFlips
