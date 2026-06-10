@@ -1,4 +1,4 @@
-Fuzzy Time International 2
+Fuzzy Text International 2
 ==========================
 
 A watchface for [Pebble][] that displays the time as natural language — "quarter past three", "half past ten" — in your choice of language and visual style.
