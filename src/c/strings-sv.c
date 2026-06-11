@@ -1,9 +1,4 @@
 #include "strings-sv.h"
-#include "strings-en_US.h"
-
-const char* const* DAYS_SV = DAYS_EN_US;
-const char* const* MONTHS_SV = MONTHS_EN_US;
-const char* DATE_FORMAT_SV = "$1  $2 $3 ";
 
 const char* const HOURS_SV[] = {
   // AM hours
