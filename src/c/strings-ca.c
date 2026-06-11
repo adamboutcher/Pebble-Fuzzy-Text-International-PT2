@@ -3,7 +3,7 @@
 
 const char* const* DAYS_CA = DAYS_EN_US;
 const char* const* MONTHS_CA = MONTHS_EN_US;
-const char* DATE_FORMAT_CA = DATE_FORMAT_EN_US;
+const char* DATE_FORMAT_CA = "$1  $2 $3 ";
 
 const char* const HOURS_CA[] = {
   // AM hours
