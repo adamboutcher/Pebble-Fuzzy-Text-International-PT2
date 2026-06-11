@@ -52,4 +52,32 @@ const char* const RELS_DE[] = {
   "fünf vor *$2"
 };
 
+const char* const MONTHS_DE[] = {
+  "jan",
+  "feb",
+  "mär",
+  "apr",
+  "mai",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "okt",
+  "nov",
+  "dez"
+};
+
+const char* const DAYS_DE[] = {
+  "so",
+  "mo",
+  "di",
+  "mi",
+  "do",
+  "fr",
+  "sa"
+};
+
+// Date format: $1 = day name, $2 = month name, $3 = date number (with suffix)
+const char* const DATE_FORMAT_DE = "$1  $3 $2 ";
+
 const char* date_suffix_DE(int date) { return ""; }
