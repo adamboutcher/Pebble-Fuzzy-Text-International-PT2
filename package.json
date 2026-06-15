@@ -1,6 +1,8 @@
 {
     "author": "Adam Boutcher",
-    "dependencies": {},
+    "dependencies": {
+        "pebble-clay": "*"
+    },
     "keywords": [],
     "name": "fuzzy-text-int-l-2",
     "pebble": {
@@ -8,19 +10,26 @@
             "configurable"
         ],
         "displayName": "Fuzzy Text International 2",
-        "enableMultiJS": false,
-        "messageKeys": [],
+        "enableMultiJS": true,
+        "messageKeys": [
+            "invert",
+            "text_align",
+            "lang",
+            "font_size",
+            "show_date",
+            "date_timeout"
+        ],
         "projectType": "native",
         "resources": {
             "media": [
                 {
-                    "characterRegex": "[A-Za-z0-9'.\u00c0-\u00ff ]",
+                    "characterRegex": "[A-Za-z0-9'.À-ÿ ]",
                     "file": "fonts/large_bold.ttf",
                     "name": "FONT_LARGE_BOLD_50",
                     "type": "font"
                 },
                 {
-                    "characterRegex": "[A-Za-z0-9'.\u00c0-\u00ff ]",
+                    "characterRegex": "[A-Za-z0-9'.À-ÿ ]",
                     "file": "fonts/large_light.ttf",
                     "name": "FONT_LARGE_LIGHT_50",
                     "type": "font"
