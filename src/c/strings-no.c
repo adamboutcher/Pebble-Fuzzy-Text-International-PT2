@@ -51,3 +51,5 @@ const char* const RELS_NO[] = {
   "ti på *$2",
   "fem på *$2"
 };
+
+const char* date_suffix_NO(int date) { return ""; }
