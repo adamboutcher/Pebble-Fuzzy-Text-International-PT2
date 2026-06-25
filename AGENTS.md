@@ -5,14 +5,14 @@ A Pebble watchface that shows the time as natural language ("quarter past three"
 ## Build
 
 ```bash
-npm install          # install pebble-clay (clay branch) or no-op on main
+npm install          # install @rebble/clay and other dependencies
 pebble build         # compiles the .pbw watchapp
 pebble install       # install to connected Pebble (optional)
 ```
 
 Requires the Pebble SDK toolchain. The build system is `waf`; `pebble build` is the only command needed.
 
-Add `node_modules/` is git-ignored — run `npm install` after cloning.
+`node_modules/` is git-ignored — run `npm install` after cloning.
 
 ## Project Layout
 
@@ -23,19 +23,18 @@ src/c/
   num2words.c          — time/date → words, LangStrings struct dispatch
   strings-XX.h/.c      — per-language hour names, phrases, date data
 src/pkjs/
-  pebble-js-app.js     — phone-side JS: config glue (or Clay init on clay branch)
-  clay-config.js       — Clay UI definition (clay branch only)
-  config-html.js       — legacy embedded HTML config (main branch only)
+  index.js             — phone-side JS entry point: Clay init and AppMessage glue
+  clay-config.js       — Clay UI component definitions (settings page layout)
 fonts/
   large_bold.ttf / large_light.ttf
 ```
 
 ## AppMessage Keys (C ↔ JS)
 
-Defined in `src/c/TextWatch.c` lines 19–24 and sent from `pebble-js-app.js`:
+Defined in `src/c/TextWatch.c` lines 19–24. The `messageKeys` array in `package.json` maps these names to integer indices — order must match the `#define` values in the C code:
 
 | Key | Integer | Setting |
-|-----|---------|---------|
+|-----|---------|-------|
 | `INVERT_KEY` | 0 | Invert colours (0/1) |
 | `TEXT_ALIGN_KEY` | 1 | Alignment: 0=center 1=left 2=right |
 | `LANGUAGE_KEY` | 2 | Language integer (see below) |
@@ -43,7 +42,28 @@ Defined in `src/c/TextWatch.c` lines 19–24 and sent from `pebble-js-app.js`:
 | `SHOW_DATE_KEY` | 4 | Show date on shake (0/1) |
 | `DATE_TIMEOUT_KEY` | 5 | 0=3s 1=5s 2=8s 3=60s 4=never |
 
-The C side reads each as `new_tuple->value->uint8`.
+The C side reads each as `new_tuple->value->uint8`. Clay's `getSettings(e.response)` returns values keyed by messageKey name; Pebble's `sendAppMessage` resolves these to the correct integers automatically — do not manually remap to integer keys.
+
+## Settings UI (Clay)
+
+Settings are handled by [Pebble Clay](https://github.com/pebble/clay) via `@rebble/clay`.
+
+`src/pkjs/index.js` initialises Clay with `autoHandleEvents: false` and wires up the two required events:
+
+```js
+Pebble.addEventListener('showConfiguration', function() {
+  Pebble.openURL(clay.generateUrl());
+});
+
+Pebble.addEventListener('webviewclosed', function(e) {
+  if (!e || !e.response) { return; }
+  Pebble.sendAppMessage(clay.getSettings(e.response), ...);
+});
+```
+
+`package.json` must have `"enableMultiJS": true` and `src/pkjs/index.js` must be the entry point (the SDK ignores other filenames when multiJS is on).
+
+Do **not** add a `ready` event handler that sends settings — it overwrites the watch's persisted settings with Clay's localStorage defaults on every app launch.
 
 ## Language System
 
@@ -53,7 +73,7 @@ Every language is registered with one line:
 
 ```c
 X(EN_US, 0x3)
-//^enum  ^integer sent from JS (must match pebble-js-app.js)
+//^enum  ^integer value in clay-config.js options array
 ```
 
 This single macro drives:
@@ -88,7 +108,7 @@ All values **must be constant expressions** (array addresses or string literals)
 
 ### Language file conventions
 
-Languages that share English day/month names and date format use `#define` aliases in the header, keeping the `.c` file to just `HOURS_XX` and `RELS_XX`:
+Languages that share English day/month names and date format use `#define` aliases in the header, keeping the `.c` file to just `HOURS_XX` and `RELS_XX`. The `date_suffix` is also aliased rather than defining a trivial function:
 
 ```c
 // strings-es.h
@@ -104,7 +124,7 @@ extern const char* const HOURS_ES[24];
 extern const char* const RELS_ES[12];
 ```
 
-Languages with their own date data (DE, EN_GB) declare real arrays:
+Languages with their own date data (DE, EN_GB) declare real arrays and a real function:
 
 ```c
 // strings-de.h
@@ -142,30 +162,32 @@ const char* date_suffix_DE(int date);
    extern const char* const HOURS_XX[24];
    extern const char* const RELS_XX[12];
    ```
-   If the language needs its own day/month names or date order, define real `char[]` arrays and a `date_suffix_XX` function instead (see `strings-de.h`).
+   If the language needs its own day/month names, date order, or ordinal suffixes, define real `char[]` arrays and a `date_suffix_XX` function instead (see `strings-de.h`).
 
-2. **`src/c/strings-XX.c`** — define `HOURS_XX[24]` and `RELS_XX[12]`.
+2. **`src/c/strings-XX.c`** — define `HOURS_XX[24]` and `RELS_XX[12]`. No `date_suffix` function needed if you used the `#define` alias in step 1.
 
 3. **`src/c/num2words.h`** — add one row to `ALL_LANGUAGES`:
    ```c
-   X(XX, 0xN)   // N must be unique and match the JS value below
+   X(XX, 0xN)   // N must be unique and match the value in clay-config.js
    ```
 
 4. **`src/c/num2words.c`** — add `#include "strings-XX.h"`.
 
-5. **`src/pkjs/pebble-js-app.js`** (main branch) — add `xx: N` to the `langs` map and add an `<option>` to `config-html.js`.
-   **`src/pkjs/clay-config.js`** (clay branch) — add an entry to the language `options` array.
+5. **`src/pkjs/clay-config.js`** — add an entry to the language `options` array:
+   ```js
+   { "label": "Your Language", "value": N }
+   ```
+   Keep options sorted alphabetically by label.
 
 ## Active Branches
 
 | Branch | Purpose |
 |--------|---------|
 | `main` | Stable, releasable code |
-| `improvements` | Completes struct-based dispatch for `get_day`/`get_month`/`get_date_format`; replaces trivial `date_suffix` functions with `#define` aliases |
-| `clay` | Replaces embedded HTML config page with Pebble Clay settings UI |
+| `clay` | Active development: replaces embedded HTML config with Pebble Clay settings UI; `index.js` entry point, `@rebble/clay` dependency |
 
 ## Git Conventions
 
 - Commit author: `Claude <noreply@anthropic.com>`
-- `git push` via proxy may return 503 for force-pushes; use the GitHub MCP `push_files` tool instead
+- `git push` via proxy may return 503; use the GitHub MCP `push_files` tool instead
 - After an MCP push, run `git fetch origin <branch> && git reset --hard origin/<branch>` to re-sync local HEAD
