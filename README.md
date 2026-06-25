@@ -55,23 +55,22 @@ Contributing a Translation
 
 To add a new language:
 
-1. **Create `src/c/strings-XX.h`** - declare the arrays, date macros, and suffix function:
+1. **Create `src/c/strings-XX.h`** - declare the arrays and `#define` any shared defaults:
    ```c
    #pragma once
    #include "strings-en_US.h"
 
+   #define DAYS_XX         DAYS_EN_US
+   #define MONTHS_XX       MONTHS_EN_US
+   #define DATE_FORMAT_XX  "$1  $2 $3 "
+   #define date_suffix_XX  date_suffix_EN_US
+
    extern const char* const HOURS_XX[24];
    extern const char* const RELS_XX[12];
-
-   #define DAYS_XX        DAYS_EN_US
-   #define MONTHS_XX      MONTHS_EN_US
-   #define DATE_FORMAT_XX "$1  $2 $3 "
-
-   const char* date_suffix_XX(int date);
    ```
-   If your language uses its own day/month names or date order, define `DAYS_XX[7]`, `MONTHS_XX[12]`, and `DATE_FORMAT_XX[]` as real arrays instead (see `strings-de.h` as an example).
+   If your language uses its own day/month names, date order, or ordinal suffixes, define `DAYS_XX[7]`, `MONTHS_XX[12]`, and `DATE_FORMAT_XX[]` as real `char[]` arrays and write a real `date_suffix_XX` function instead (see `strings-de.h` as an example).
 
-2. **Create `src/c/strings-XX.c`** - define 24 hour names, 12 relative-time phrases, and a suffix function (return `""` if your language doesn't use ordinal suffixes):
+2. **Create `src/c/strings-XX.c`** - define 24 hour names and 12 relative-time phrases:
    ```c
    #include "strings-XX.h"
    const char* const HOURS_XX[] = { /* 12 AM + 12 PM hour names */ };
@@ -79,9 +78,8 @@ To add a new language:
      "*$1 ...",   /* on the hour   */
      /* 11 more five-minute intervals */
    };
-   const char* date_suffix_XX(int date) { return ""; }
    ```
-   In the `RELS_XX` phrases, `$1` is replaced with the current hour and `$2` with the next. A `*` prefix makes that word bold.
+   No `date_suffix` function is needed if you used the `#define` alias in step 1. In the `RELS_XX` phrases, `$1` is replaced with the current hour and `$2` with the next. A `*` prefix makes that word bold.
 
 3. **Register the language in `src/c/num2words.h`** - add one row to `ALL_LANGUAGES` with a unique integer value:
    ```c
@@ -93,11 +91,10 @@ To add a new language:
    #include "strings-XX.h"
    ```
 
-5. **Wire up the JS side** - add the language to `src/pkjs/pebble-js-app.js`:
-   ```javascript
-   xx: N
+5. **Add the language to `src/pkjs/clay-config.js`** - add an entry to the language `options` array and keep it sorted alphabetically by label:
+   ```js
+   { "label": "Your Language", "value": N }
    ```
-   And add an `<option>` to the select in `src/pkjs/config-html.js`.
 
 Please [open an issue][issue] to report an error or discuss anything else.
 Pull requests are welcome.
