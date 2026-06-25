@@ -1,7 +1,7 @@
 {
     "author": "Adam Boutcher",
     "dependencies": {
-        "pebble-clay": "*"
+        "@rebble/clay": "*"
     },
     "keywords": [],
     "name": "fuzzy-text-int-l-2",
