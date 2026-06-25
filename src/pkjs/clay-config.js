@@ -51,6 +51,10 @@ module.exports = [
     ]
   },
   {
+    "type": "submit",
+    "defaultValue": "Save Settings"
+  },
+  {
     "type": "select",
     "messageKey": "lang",
     "label": "Language",
