@@ -5,7 +5,7 @@ A Pebble watchface that shows the time as natural language ("quarter past three"
 ## Build
 
 ```bash
-npm install          # install @rebble/clay and other dependencies
+npm install          # install @rebble/clay (clay branch only; no-op on main)
 pebble build         # compiles the .pbw watchapp
 pebble install       # install to connected Pebble (optional)
 ```
@@ -184,10 +184,42 @@ const char* date_suffix_DE(int date);
 | Branch | Purpose |
 |--------|---------|
 | `main` | Stable, releasable code |
-| `clay` | Active development: replaces embedded HTML config with Pebble Clay settings UI; `index.js` entry point, `@rebble/clay` dependency |
+| `clay` | Active development: Pebble Clay settings UI; `index.js` entry point, `@rebble/clay` dependency |
+| `claude/hopeful-pascal-60Bti` | This file (AGENTS.md) and its CLAUDE.md symlink only |
 
 ## Git Conventions
 
-- Commit author: `Claude <noreply@anthropic.com>`
-- `git push` via proxy may return 503; use the GitHub MCP `push_files` tool instead
-- After an MCP push, run `git fetch origin <branch> && git reset --hard origin/<branch>` to re-sync local HEAD
+### Author setup
+
+Before making any commits, configure the author so the stop hook passes:
+
+```bash
+git config user.email noreply@anthropic.com
+git config user.name Claude
+```
+
+### Pushing
+
+`git push` fails with 503 through this environment's proxy. Use the GitHub MCP `push_files` tool to push file content, then re-sync the local branch:
+
+```bash
+git fetch origin <branch> && git reset --hard origin/<branch>
+```
+
+### Fixing unverified commits
+
+If the stop hook reports commits with unverified signatures, re-author all commits ahead of origin and re-push:
+
+```bash
+git config user.email noreply@anthropic.com && git config user.name Claude
+git rebase --exec "git commit --amend --no-edit --reset-author" origin/<branch>
+# then push via MCP push_files and git reset --hard origin/<branch>
+```
+
+## Common Pitfalls
+
+- **`initializer element is not constant`** — a `const char*` pointer variable was used in the `lang_strings[]` initialiser. Change the declaration to `const char ARRAY[]` and the definition to match.
+- **`conflicting type qualifiers`** — header declares `char[]` but source defines `char* const`. Keep both as `char[]`.
+- **Settings overwrite on launch** — a `ready` handler that calls `clay.getSettings()` (no args) sends localStorage defaults to the watch on every startup, reverting any persisted changes. Remove it.
+- **Wrong JS entry point** — with `enableMultiJS: true`, the Pebble SDK requires `src/pkjs/index.js` exactly. Any other filename is ignored.
+- **`date_suffix` function vs `#define`** — languages without ordinal suffixes should use `#define date_suffix_XX date_suffix_EN_US`, not a function returning `""`. Functions cause linker duplication and don't satisfy the X-macro switch expansion correctly.
