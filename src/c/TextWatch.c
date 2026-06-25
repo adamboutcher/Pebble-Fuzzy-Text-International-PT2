@@ -756,8 +756,8 @@ static void window_unload(Window *window)
 		destroy_line(&lines[i]);
 	}
 
-	font_unload_custom_font(custom_bold_font);
-	font_unload_custom_font(custom_light_font);
+	fonts_unload_custom_font(custom_bold_font);
+	fonts_unload_custom_font(custom_light_font);
 }
 
 static void handle_init() {
