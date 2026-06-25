@@ -9,14 +9,20 @@ Pebble.addEventListener('showConfiguration', function() {
 Pebble.addEventListener('webviewclosed', function(e) {
   if (!e || !e.response) { return; }
   var s = clay.getSettings(e.response);
-  Pebble.sendAppMessage({
-    invert:       s.invert    ? 1 : 0,
-    text_align:   parseInt(s.text_align,   10),
-    lang:         parseInt(s.lang,         10),
-    font_size:    parseInt(s.font_size,    10),
-    show_date:    s.show_date ? 1 : 0,
-    date_timeout: parseInt(s.date_timeout, 10)
-  }, function() {}, function(err) {
-    console.log('Error sending settings: ' + JSON.stringify(err));
-  });
+  // Delay to let the watch's AppSync re-init message clear the outbox
+  // before we send; without this the outbox is busy and the message is dropped.
+  setTimeout(function() {
+    Pebble.sendAppMessage({
+      0: s.invert    ? 1 : 0,
+      1: parseInt(s.text_align,   10),
+      2: parseInt(s.lang,         10),
+      3: parseInt(s.font_size,    10),
+      4: s.show_date ? 1 : 0,
+      5: parseInt(s.date_timeout, 10)
+    }, function() {
+      console.log('Settings sent');
+    }, function(err) {
+      console.log('Error sending settings: ' + JSON.stringify(err));
+    });
+  }, 200);
 });
