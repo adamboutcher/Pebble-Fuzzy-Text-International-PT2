@@ -756,8 +756,8 @@ static void window_unload(Window *window)
 		destroy_line(&lines[i]);
 	}
 
-	fonts_unload_custom_font(custom_bold_font);
-	fonts_unload_custom_font(custom_light_font);
+	font_unload_custom_font(custom_bold_font);
+	font_unload_custom_font(custom_light_font);
 }
 
 static void handle_init() {
@@ -800,10 +800,9 @@ static void handle_init() {
 		.appear = window_appear
 	});
 
-	// Initialize message queue
-	const int inbound_size = 64;
-	const int outbound_size = 64;
-	app_message_open(inbound_size, outbound_size);
+	// Initialize message queue — use platform maximums so the inbox can fit
+	// all 6 keys sent as INT32 by the JS SDK (6*11+1 = 67 bytes, > old 64).
+	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 
 	const bool animated = true;
 	window_stack_push(window, animated);
@@ -833,4 +832,3 @@ int main(void)
 	app_event_loop();
 	handle_deinit();
 }
-
