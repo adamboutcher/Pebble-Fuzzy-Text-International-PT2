@@ -16,12 +16,17 @@
 #define TOP_MARGIN 10
 #define SIDE_MARGIN 2
 
-#define INVERT_KEY 0
-#define TEXT_ALIGN_KEY 1
-#define LANGUAGE_KEY 2
-#define FONT_SIZE_KEY 3
-#define SHOW_DATE_KEY     4
-#define DATE_TIMEOUT_KEY  5
+// Use the SDK-generated message key IDs (from the messageKeys array in
+// package.json) so the C and JS sides agree regardless of how the build
+// numbers them. Sending raw integer keys from JS is unreliable when a
+// project defines messageKeys — the SDK remaps numeric keys through its own
+// key table, scrambling which value lands on which setting.
+#define INVERT_KEY        MESSAGE_KEY_invert
+#define TEXT_ALIGN_KEY    MESSAGE_KEY_text_align
+#define LANGUAGE_KEY      MESSAGE_KEY_lang
+#define FONT_SIZE_KEY     MESSAGE_KEY_font_size
+#define SHOW_DATE_KEY     MESSAGE_KEY_show_date
+#define DATE_TIMEOUT_KEY  MESSAGE_KEY_date_timeout
 
 // Indices into DATE_TIMEOUT_MS[]; 0 = never auto-revert.
 #define DATE_TIMEOUT_NEVER   4
