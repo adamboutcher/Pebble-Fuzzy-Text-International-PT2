@@ -583,85 +583,80 @@ static void sync_error_callback(DictionaryResult dict_error, AppMessageResult ap
 
 static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tuple, const Tuple* old_tuple, void* context) {
 	GTextAlignment alignment;
-	switch (key) {
-		case TEXT_ALIGN_KEY:
-			text_align = new_tuple->value->uint8;
-			persist_write_int(PERSIST_TEXT_ALIGN, text_align);
-			DBG("Set text alignment: %u", text_align);
+	// The MESSAGE_KEY_* IDs are link-time symbols, not compile-time constants,
+	// so they can't be switch/case labels — use an if/else-if chain instead.
+	if (key == TEXT_ALIGN_KEY) {
+		text_align = new_tuple->value->uint8;
+		persist_write_int(PERSIST_TEXT_ALIGN, text_align);
+		DBG("Set text alignment: %u", text_align);
 
-			alignment = lookup_text_alignment(text_align);
-			for (int i = 0; i < NUM_LINES; i++)
-			{
-				text_layer_set_text_alignment(lines[i].currentLayer, alignment);
-				text_layer_set_text_alignment(lines[i].nextLayer, alignment);
-				layer_mark_dirty(text_layer_get_layer(lines[i].currentLayer));
-				layer_mark_dirty(text_layer_get_layer(lines[i].nextLayer));
-			}
-			break;
-		case INVERT_KEY:
-			invert = new_tuple->value->uint8 == 1;
-			persist_write_bool(PERSIST_INVERT, invert);
-			DBG("Set invert: %u", invert ? 1 : 0);
+		alignment = lookup_text_alignment(text_align);
+		for (int i = 0; i < NUM_LINES; i++)
+		{
+			text_layer_set_text_alignment(lines[i].currentLayer, alignment);
+			text_layer_set_text_alignment(lines[i].nextLayer, alignment);
+			layer_mark_dirty(text_layer_get_layer(lines[i].currentLayer));
+			layer_mark_dirty(text_layer_get_layer(lines[i].nextLayer));
+		}
+	} else if (key == INVERT_KEY) {
+		invert = new_tuple->value->uint8 == 1;
+		persist_write_bool(PERSIST_INVERT, invert);
+		DBG("Set invert: %u", invert ? 1 : 0);
 
-			window_set_background_color(window, bg_color());
-			for (int j = 0; j < NUM_LINES; j++) {
-				text_layer_set_text_color(lines[j].currentLayer, fg_color());
-				text_layer_set_text_color(lines[j].nextLayer, fg_color());
-				layer_mark_dirty(text_layer_get_layer(lines[j].currentLayer));
-				layer_mark_dirty(text_layer_get_layer(lines[j].nextLayer));
-			}
-			break;
-		case LANGUAGE_KEY:
-			lang = (Language) new_tuple->value->uint8;
-			persist_write_int(PERSIST_LANGUAGE, lang);
-			DBG("Set language: %u", lang);
+		window_set_background_color(window, bg_color());
+		for (int j = 0; j < NUM_LINES; j++) {
+			text_layer_set_text_color(lines[j].currentLayer, fg_color());
+			text_layer_set_text_color(lines[j].nextLayer, fg_color());
+			layer_mark_dirty(text_layer_get_layer(lines[j].currentLayer));
+			layer_mark_dirty(text_layer_get_layer(lines[j].nextLayer));
+		}
+	} else if (key == LANGUAGE_KEY) {
+		lang = (Language) new_tuple->value->uint8;
+		persist_write_int(PERSIST_LANGUAGE, lang);
+		DBG("Set language: %u", lang);
 
-			if (t)
-			{
+		if (t)
+		{
+			display_time(t);
+		}
+	} else if (key == FONT_SIZE_KEY) {
+		font_size = new_tuple->value->uint8;
+		persist_write_int(PERSIST_FONT_SIZE, font_size);
+		DBG("Set font size: %u", font_size);
+
+		row_height = compute_row_height();
+		for (int i = 0; i < NUM_LINES; i++) {
+			destroy_animation(&lines[i].animation1);
+			destroy_animation(&lines[i].animation2);
+		}
+		if (t) {
+			display_initial_time(t);
+		}
+		for (int i = 0; i < NUM_LINES; i++) {
+			GRect rect = layer_get_frame((Layer *)lines[i].nextLayer);
+			rect.origin.x = screen_width;
+			layer_set_frame((Layer *)lines[i].nextLayer, rect);
+		}
+	} else if (key == SHOW_DATE_KEY) {
+		show_date = new_tuple->value->uint8 == 1;
+		persist_write_bool(PERSIST_SHOW_DATE, show_date);
+		DBG("Set show date: %u", show_date ? 1 : 0);
+		if (show_date) {
+			accel_tap_service_subscribe(tap_handler);
+		} else {
+			accel_tap_service_unsubscribe();
+			cancel_date_timer();
+			if (!showTime) {
+				showTime = true;
 				display_time(t);
 			}
-			break;
-		case FONT_SIZE_KEY:
-			font_size = new_tuple->value->uint8;
-			persist_write_int(PERSIST_FONT_SIZE, font_size);
-			DBG("Set font size: %u", font_size);
-
-			row_height = compute_row_height();
-			for (int i = 0; i < NUM_LINES; i++) {
-				destroy_animation(&lines[i].animation1);
-				destroy_animation(&lines[i].animation2);
-			}
-			if (t) {
-				display_initial_time(t);
-			}
-			for (int i = 0; i < NUM_LINES; i++) {
-				GRect rect = layer_get_frame((Layer *)lines[i].nextLayer);
-				rect.origin.x = screen_width;
-				layer_set_frame((Layer *)lines[i].nextLayer, rect);
-			}
-			break;
-		case SHOW_DATE_KEY:
-			show_date = new_tuple->value->uint8 == 1;
-			persist_write_bool(PERSIST_SHOW_DATE, show_date);
-			DBG("Set show date: %u", show_date ? 1 : 0);
-			if (show_date) {
-				accel_tap_service_subscribe(tap_handler);
-			} else {
-				accel_tap_service_unsubscribe();
-				cancel_date_timer();
-				if (!showTime) {
-					showTime = true;
-					display_time(t);
-				}
-			}
-			break;
-		case DATE_TIMEOUT_KEY:
-			date_timeout_idx = new_tuple->value->uint8;
-			persist_write_int(PERSIST_DATE_TIMEOUT, date_timeout_idx);
-			DBG("Set date timeout: %u", date_timeout_idx);
-			// Cancel any running timer; new timeout applies from the next shake.
-			cancel_date_timer();
-			break;
+		}
+	} else if (key == DATE_TIMEOUT_KEY) {
+		date_timeout_idx = new_tuple->value->uint8;
+		persist_write_int(PERSIST_DATE_TIMEOUT, date_timeout_idx);
+		DBG("Set date timeout: %u", date_timeout_idx);
+		// Cancel any running timer; new timeout applies from the next shake.
+		cancel_date_timer();
 	}
 }
 
