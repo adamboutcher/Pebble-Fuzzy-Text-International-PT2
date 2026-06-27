@@ -28,6 +28,17 @@
 #define SHOW_DATE_KEY     MESSAGE_KEY_show_date
 #define DATE_TIMEOUT_KEY  MESSAGE_KEY_date_timeout
 
+// Persistent-storage keys, kept independent of the AppMessage keys above and
+// stable across versions. Earlier builds stored settings under these fixed
+// 0-5 values, so keeping them lets upgrading users retain their saved settings
+// (the AppMessage keys are now SDK-generated IDs, which would otherwise reset).
+#define PERSIST_INVERT        0
+#define PERSIST_TEXT_ALIGN    1
+#define PERSIST_LANGUAGE      2
+#define PERSIST_FONT_SIZE     3
+#define PERSIST_SHOW_DATE     4
+#define PERSIST_DATE_TIMEOUT  5
+
 // Indices into DATE_TIMEOUT_MS[]; 0 = never auto-revert.
 #define DATE_TIMEOUT_NEVER   4
 #define DATE_TIMEOUT_DEFAULT 3  // 1 minute
@@ -575,7 +586,7 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 	switch (key) {
 		case TEXT_ALIGN_KEY:
 			text_align = new_tuple->value->uint8;
-			persist_write_int(TEXT_ALIGN_KEY, text_align);
+			persist_write_int(PERSIST_TEXT_ALIGN, text_align);
 			DBG("Set text alignment: %u", text_align);
 
 			alignment = lookup_text_alignment(text_align);
@@ -589,7 +600,7 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 			break;
 		case INVERT_KEY:
 			invert = new_tuple->value->uint8 == 1;
-			persist_write_bool(INVERT_KEY, invert);
+			persist_write_bool(PERSIST_INVERT, invert);
 			DBG("Set invert: %u", invert ? 1 : 0);
 
 			window_set_background_color(window, bg_color());
@@ -602,7 +613,7 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 			break;
 		case LANGUAGE_KEY:
 			lang = (Language) new_tuple->value->uint8;
-			persist_write_int(LANGUAGE_KEY, lang);
+			persist_write_int(PERSIST_LANGUAGE, lang);
 			DBG("Set language: %u", lang);
 
 			if (t)
@@ -612,7 +623,7 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 			break;
 		case FONT_SIZE_KEY:
 			font_size = new_tuple->value->uint8;
-			persist_write_int(FONT_SIZE_KEY, font_size);
+			persist_write_int(PERSIST_FONT_SIZE, font_size);
 			DBG("Set font size: %u", font_size);
 
 			row_height = compute_row_height();
@@ -631,7 +642,7 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 			break;
 		case SHOW_DATE_KEY:
 			show_date = new_tuple->value->uint8 == 1;
-			persist_write_bool(SHOW_DATE_KEY, show_date);
+			persist_write_bool(PERSIST_SHOW_DATE, show_date);
 			DBG("Set show date: %u", show_date ? 1 : 0);
 			if (show_date) {
 				accel_tap_service_subscribe(tap_handler);
@@ -646,7 +657,7 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 			break;
 		case DATE_TIMEOUT_KEY:
 			date_timeout_idx = new_tuple->value->uint8;
-			persist_write_int(DATE_TIMEOUT_KEY, date_timeout_idx);
+			persist_write_int(PERSIST_DATE_TIMEOUT, date_timeout_idx);
 			DBG("Set date timeout: %u", date_timeout_idx);
 			// Cancel any running timer; new timeout applies from the next shake.
 			cancel_date_timer();
@@ -767,34 +778,34 @@ static void window_unload(Window *window)
 
 static void handle_init() {
 	// Load settings from persistent storage
-	if (persist_exists(TEXT_ALIGN_KEY))
+	if (persist_exists(PERSIST_TEXT_ALIGN))
 	{
-		text_align = persist_read_int(TEXT_ALIGN_KEY);
+		text_align = persist_read_int(PERSIST_TEXT_ALIGN);
 		DBG("Read text alignment from store: %u", text_align);
 	}
-	if (persist_exists(INVERT_KEY))
+	if (persist_exists(PERSIST_INVERT))
 	{
-		invert = persist_read_bool(INVERT_KEY);
+		invert = persist_read_bool(PERSIST_INVERT);
 		DBG("Read invert from store: %u", invert ? 1 : 0);
 	}
-	if (persist_exists(LANGUAGE_KEY))
+	if (persist_exists(PERSIST_LANGUAGE))
 	{
-		lang = (Language) persist_read_int(LANGUAGE_KEY);
+		lang = (Language) persist_read_int(PERSIST_LANGUAGE);
 		DBG("Read language from store: %u", lang);
 	}
-	if (persist_exists(FONT_SIZE_KEY))
+	if (persist_exists(PERSIST_FONT_SIZE))
 	{
-		font_size = persist_read_int(FONT_SIZE_KEY);
+		font_size = persist_read_int(PERSIST_FONT_SIZE);
 		DBG("Read font size from store: %u", font_size);
 	}
-	if (persist_exists(SHOW_DATE_KEY))
+	if (persist_exists(PERSIST_SHOW_DATE))
 	{
-		show_date = persist_read_bool(SHOW_DATE_KEY);
+		show_date = persist_read_bool(PERSIST_SHOW_DATE);
 		DBG("Read show date from store: %u", show_date ? 1 : 0);
 	}
-	if (persist_exists(DATE_TIMEOUT_KEY))
+	if (persist_exists(PERSIST_DATE_TIMEOUT))
 	{
-		date_timeout_idx = persist_read_int(DATE_TIMEOUT_KEY);
+		date_timeout_idx = persist_read_int(PERSIST_DATE_TIMEOUT);
 		DBG("Read date timeout from store: %u", date_timeout_idx);
 	}
 
