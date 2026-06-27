@@ -573,11 +573,25 @@ static void click_config_provider(ClickConfig **config, Window *window) {
 
 #endif
 
-// Read an integer Tuple regardless of the width/sign the sender used. The JS
-// SDK encodes JS numbers as INT32, but reading defensively avoids garbage if
-// that ever changes.
+// Read an integer Tuple regardless of how the sender encoded it. Clay's
+// getSettings() returns select values as STRINGS, so sendAppMessage delivers
+// them as TUPLE_CSTRING — reading those as raw ints yields ASCII garbage (e.g.
+// "3" -> 51), which then indexes lang_strings[] out of bounds and faults.
+// Parse strings here, and read ints at their actual width/sign.
 static int32_t tuple_int(const Tuple *tup)
 {
+	if (tup->type == TUPLE_CSTRING) {
+		const char *s = tup->value->cstring;
+		if (!s) { return 0; }
+		bool neg = (*s == '-');
+		if (neg) { s++; }
+		int32_t n = 0;
+		while (*s >= '0' && *s <= '9') {
+			n = n * 10 + (*s - '0');
+			s++;
+		}
+		return neg ? -n : n;
+	}
 	switch (tup->length) {
 		case 1: return (tup->type == TUPLE_INT) ? (int32_t) tup->value->int8  : (int32_t) tup->value->uint8;
 		case 2: return (tup->type == TUPLE_INT) ? (int32_t) tup->value->int16 : (int32_t) tup->value->uint16;
