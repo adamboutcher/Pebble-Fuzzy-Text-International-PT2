@@ -816,20 +816,22 @@ static void handle_init() {
 		.appear = window_appear
 	});
 
-	// Register the inbox handler before opening AppMessage, and use platform
-	// maximum buffers so the full settings blob from Clay always fits.
-	app_message_register_inbox_received(inbox_received_handler);
-	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
-
 	const bool animated = true;
 	window_stack_push(window, animated);
-  
+
 	if (show_date) {
 		accel_tap_service_subscribe(tap_handler);
 	}
 
 	// Subscribe to minute ticks
 	tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
+
+	// Register the inbox handler and open AppMessage AFTER the window is pushed,
+	// so window_load has created the text layers before any queued settings
+	// message can be delivered (the handler touches those layers). Use platform
+	// maximum buffers so the full settings blob from Clay always fits.
+	app_message_register_inbox_received(inbox_received_handler);
+	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 
 #if DEBUG
 	// Button functionality
