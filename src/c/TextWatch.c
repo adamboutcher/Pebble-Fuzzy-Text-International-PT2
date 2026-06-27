@@ -66,9 +66,6 @@ static const uint32_t DATE_TIMEOUT_MS[] = { 3000, 5000, 8000, 60000, 0 };
 // We can add a new word to a line if there are at least this many characters free after
 #define LINE_APPEND_LIMIT (LINE_LENGTH - LINE_APPEND_MARGIN)
 
-static AppSync sync;
-static uint8_t sync_buffer[128];
-
 static int text_align = TEXT_ALIGN_CENTER;
 static bool invert = false;
 static Language lang = EN_US;
@@ -576,30 +573,40 @@ static void click_config_provider(ClickConfig **config, Window *window) {
 
 #endif
 
-static void sync_error_callback(DictionaryResult dict_error, AppMessageResult app_message_error, void *context)
+// Read an integer Tuple regardless of the width/sign the sender used. The JS
+// SDK encodes JS numbers as INT32, but reading defensively avoids garbage if
+// that ever changes.
+static int32_t tuple_int(const Tuple *tup)
 {
-	DBG("App Message Sync Error: %d", app_message_error);
+	switch (tup->length) {
+		case 1: return (tup->type == TUPLE_INT) ? tup->value->int8  : tup->value->uint8;
+		case 2: return (tup->type == TUPLE_INT) ? tup->value->int16 : tup->value->uint16;
+		default: return (tup->type == TUPLE_INT) ? tup->value->int32 : tup->value->uint32;
+	}
 }
 
-static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tuple, const Tuple* old_tuple, void* context) {
-	GTextAlignment alignment;
-	// The MESSAGE_KEY_* IDs are link-time symbols, not compile-time constants,
-	// so they can't be switch/case labels — use an if/else-if chain instead.
-	if (key == TEXT_ALIGN_KEY) {
-		text_align = new_tuple->value->uint8;
-		persist_write_int(PERSIST_TEXT_ALIGN, text_align);
-		DBG("Set text alignment: %u", text_align);
+static void inbox_received_handler(DictionaryIterator *iter, void *context)
+{
+	bool need_redraw = false;
+	bool need_relayout = false;
+	Tuple *tup;
 
-		alignment = lookup_text_alignment(text_align);
-		for (int i = 0; i < NUM_LINES; i++)
-		{
+	if ((tup = dict_find(iter, TEXT_ALIGN_KEY)) != NULL) {
+		text_align = tuple_int(tup);
+		persist_write_int(PERSIST_TEXT_ALIGN, text_align);
+		DBG("Set text alignment: %d", text_align);
+
+		GTextAlignment alignment = lookup_text_alignment(text_align);
+		for (int i = 0; i < NUM_LINES; i++) {
 			text_layer_set_text_alignment(lines[i].currentLayer, alignment);
 			text_layer_set_text_alignment(lines[i].nextLayer, alignment);
 			layer_mark_dirty(text_layer_get_layer(lines[i].currentLayer));
 			layer_mark_dirty(text_layer_get_layer(lines[i].nextLayer));
 		}
-	} else if (key == INVERT_KEY) {
-		invert = new_tuple->value->uint8 == 1;
+	}
+
+	if ((tup = dict_find(iter, INVERT_KEY)) != NULL) {
+		invert = tuple_int(tup) == 1;
 		persist_write_bool(PERSIST_INVERT, invert);
 		DBG("Set invert: %u", invert ? 1 : 0);
 
@@ -610,21 +617,50 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 			layer_mark_dirty(text_layer_get_layer(lines[j].currentLayer));
 			layer_mark_dirty(text_layer_get_layer(lines[j].nextLayer));
 		}
-	} else if (key == LANGUAGE_KEY) {
-		lang = (Language) new_tuple->value->uint8;
+	}
+
+	if ((tup = dict_find(iter, LANGUAGE_KEY)) != NULL) {
+		lang = (Language) tuple_int(tup);
 		persist_write_int(PERSIST_LANGUAGE, lang);
-		DBG("Set language: %u", lang);
+		DBG("Set language: %d", lang);
+		need_redraw = true;
+	}
 
-		if (t)
-		{
-			display_time(t);
-		}
-	} else if (key == FONT_SIZE_KEY) {
-		font_size = new_tuple->value->uint8;
+	if ((tup = dict_find(iter, FONT_SIZE_KEY)) != NULL) {
+		font_size = tuple_int(tup);
 		persist_write_int(PERSIST_FONT_SIZE, font_size);
-		DBG("Set font size: %u", font_size);
-
+		DBG("Set font size: %d", font_size);
 		row_height = compute_row_height();
+		need_relayout = true;
+	}
+
+	if ((tup = dict_find(iter, SHOW_DATE_KEY)) != NULL) {
+		show_date = tuple_int(tup) == 1;
+		persist_write_bool(PERSIST_SHOW_DATE, show_date);
+		DBG("Set show date: %u", show_date ? 1 : 0);
+		if (show_date) {
+			accel_tap_service_subscribe(tap_handler);
+		} else {
+			accel_tap_service_unsubscribe();
+			cancel_date_timer();
+			if (!showTime) {
+				showTime = true;
+				need_redraw = true;
+			}
+		}
+	}
+
+	if ((tup = dict_find(iter, DATE_TIMEOUT_KEY)) != NULL) {
+		date_timeout_idx = tuple_int(tup);
+		persist_write_int(PERSIST_DATE_TIMEOUT, date_timeout_idx);
+		DBG("Set date timeout: %d", date_timeout_idx);
+		// Cancel any running timer; new timeout applies from the next shake.
+		cancel_date_timer();
+	}
+
+	// A font-size change needs a full relayout (row height + off-screen reset);
+	// a language/view change just needs a redraw with the current layout.
+	if (need_relayout) {
 		for (int i = 0; i < NUM_LINES; i++) {
 			destroy_animation(&lines[i].animation1);
 			destroy_animation(&lines[i].animation2);
@@ -637,26 +673,8 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 			rect.origin.x = screen_width;
 			layer_set_frame((Layer *)lines[i].nextLayer, rect);
 		}
-	} else if (key == SHOW_DATE_KEY) {
-		show_date = new_tuple->value->uint8 == 1;
-		persist_write_bool(PERSIST_SHOW_DATE, show_date);
-		DBG("Set show date: %u", show_date ? 1 : 0);
-		if (show_date) {
-			accel_tap_service_subscribe(tap_handler);
-		} else {
-			accel_tap_service_unsubscribe();
-			cancel_date_timer();
-			if (!showTime) {
-				showTime = true;
-				display_time(t);
-			}
-		}
-	} else if (key == DATE_TIMEOUT_KEY) {
-		date_timeout_idx = new_tuple->value->uint8;
-		persist_write_int(PERSIST_DATE_TIMEOUT, date_timeout_idx);
-		DBG("Set date timeout: %u", date_timeout_idx);
-		// Cancel any running timer; new timeout applies from the next shake.
-		cancel_date_timer();
+	} else if (need_redraw && t) {
+		display_time(t);
 	}
 }
 
@@ -742,23 +760,10 @@ static void window_load(Window *window)
 	time(&raw_time);
 	t_buf = *localtime(&raw_time);
 	display_initial_time(t);
-
-	Tuplet initial_values[] = {
-		TupletInteger(TEXT_ALIGN_KEY,    (uint8_t) text_align),
-		TupletInteger(INVERT_KEY,        (uint8_t) invert ? 1 : 0),
-		TupletInteger(LANGUAGE_KEY,      (uint8_t) lang),
-		TupletInteger(FONT_SIZE_KEY,     (uint8_t) font_size),
-		TupletInteger(SHOW_DATE_KEY,     (uint8_t) show_date ? 1 : 0),
-		TupletInteger(DATE_TIMEOUT_KEY,  (uint8_t) date_timeout_idx)
-	};
-
-	app_sync_init(&sync, sync_buffer, sizeof(sync_buffer), initial_values, ARRAY_LENGTH(initial_values),
-			sync_tuple_changed_callback, sync_error_callback, NULL);
 }
 
 static void window_unload(Window *window)
 {
-	app_sync_deinit(&sync);
 	cancel_date_timer();
 
 	// Free layers
@@ -811,8 +816,9 @@ static void handle_init() {
 		.appear = window_appear
 	});
 
-	// Initialize message queue — use platform maximums so the inbox can fit
-	// all 6 keys sent as INT32 by the JS SDK (6*11+1 = 67 bytes, > old 64).
+	// Register the inbox handler before opening AppMessage, and use platform
+	// maximum buffers so the full settings blob from Clay always fits.
+	app_message_register_inbox_received(inbox_received_handler);
 	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 
 	const bool animated = true;
