@@ -579,9 +579,9 @@ static void click_config_provider(ClickConfig **config, Window *window) {
 static int32_t tuple_int(const Tuple *tup)
 {
 	switch (tup->length) {
-		case 1: return (tup->type == TUPLE_INT) ? tup->value->int8  : tup->value->uint8;
-		case 2: return (tup->type == TUPLE_INT) ? tup->value->int16 : tup->value->uint16;
-		default: return (tup->type == TUPLE_INT) ? tup->value->int32 : tup->value->uint32;
+		case 1: return (tup->type == TUPLE_INT) ? (int32_t) tup->value->int8  : (int32_t) tup->value->uint8;
+		case 2: return (tup->type == TUPLE_INT) ? (int32_t) tup->value->int16 : (int32_t) tup->value->uint16;
+		default: return (tup->type == TUPLE_INT) ? (int32_t) tup->value->int32 : (int32_t) tup->value->uint32;
 	}
 }
 
