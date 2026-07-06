@@ -52,12 +52,12 @@ var configHTML = [
   '        <option value="en_GB">English (Great Britain)</option>',
   '        <option value="en_US">English (United States)</option>',
   '        <option value="es">Espa&#241;ol</option>',
-  '        <option value="nl_BE">Flemish</option>',
   '        <option value="fr">Fran&#231;ais</option>',
   '        <option value="nl">Nederlands</option>',
   '        <option value="no">Norsk</option>',
   '        <option value="pt">Portugu&#234;s</option>',
   '        <option value="sv">Svenska</option>',
+  '        <option value="nl_BE">Vlaams</option>',
   '      </select>',
   '    </fieldset>',
 
