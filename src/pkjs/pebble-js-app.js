@@ -21,7 +21,8 @@ var langs = {
   sv:    7,
   nl:    8,
   pt:    9,
-  de2:   10
+  de2:   10,
+  nl_BE: 11
 };
 
 var fontSizes = {
