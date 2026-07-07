@@ -23,7 +23,7 @@ Features
 Settings
 --------
 
-All settings are configurable from the Pebble app on your phone:
+All settings are configurable from the watchface's settings page — built with [Pebble Clay](https://github.com/pebble/clay) — in the Pebble app on your phone:
 
 | Setting | Options |
 |---|---|
@@ -85,6 +85,10 @@ To add a new language:
    ```c
    X(XX, 0xN)
    ```
+   This single line is all the wiring the C side needs: the `ALL_LANGUAGES`
+   X-macro generates the `Language` enum value, the `lang_strings[]` lookup
+   table entry (hours, rels, days, months, date format), and the
+   `get_date_suffix` dispatch. There are no `switch` statements to edit.
 
 4. **Add the include in `src/c/num2words.c`**:
    ```c
