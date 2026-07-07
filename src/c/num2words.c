@@ -133,21 +133,11 @@ void time_to_words(Language lang, int hours, int minutes, int seconds, char* wor
 }
 
 const char* get_day(Language lang, int index) {
-  switch (lang) {
-    case DE:    return DAYS_DE[index];
-    case DE2:   return DAYS_DE2[index];
-    case EN_GB: return DAYS_EN_GB[index];
-    default:    return DAYS_EN_US[index];
-  }
+  return lang_strings[lang].days[index];
 }
 
 const char* get_month(Language lang, int index) {
-  switch (lang) {
-    case DE:    return MONTHS_DE[index];
-    case DE2:   return MONTHS_DE2[index];
-    case EN_GB: return MONTHS_EN_GB[index];
-    default:    return MONTHS_EN_US[index];
-  }
+  return lang_strings[lang].months[index];
 }
 
 const char* get_date_format(Language lang) {
