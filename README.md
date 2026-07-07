@@ -43,12 +43,12 @@ Languages
 - English (Great Britain)
 - English (United States)
 - Español
-- Flemish
 - Français
 - Nederlands
 - Norsk
 - Português
 - Svenska
+- Vlaams
 
 
 Contributing a Translation
