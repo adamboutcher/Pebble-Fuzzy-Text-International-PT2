@@ -43,6 +43,7 @@ Languages
 - English (Great Britain)
 - English (United States)
 - Español
+- Flemish
 - Français
 - Nederlands
 - Norsk
