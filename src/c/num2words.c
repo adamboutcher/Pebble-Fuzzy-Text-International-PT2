@@ -141,12 +141,7 @@ const char* get_month(Language lang, int index) {
 }
 
 const char* get_date_format(Language lang) {
-  switch (lang) {
-    case DE:    return DATE_FORMAT_DE;
-    case DE2:   return DATE_FORMAT_DE2;
-    case EN_GB: return DATE_FORMAT_EN_GB;
-    default:    return DATE_FORMAT_EN_US;
-  }
+  return lang_strings[lang].date_format;
 }
 
 const char* get_date_suffix(Language lang, int date) {
