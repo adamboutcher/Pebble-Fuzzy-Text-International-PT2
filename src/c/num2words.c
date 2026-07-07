@@ -138,6 +138,8 @@ const char* get_day(Language lang, int index) {
     case DE:    return DAYS_DE[index];
     case DE2:   return DAYS_DE2[index];
     case EN_GB: return DAYS_EN_GB[index];
+    case NL:
+    case NL_BE: return DAYS_NL[index];
     default:    return DAYS_EN_US[index];
   }
 }
@@ -147,6 +149,8 @@ const char* get_month(Language lang, int index) {
     case DE:    return MONTHS_DE[index];
     case DE2:   return MONTHS_DE2[index];
     case EN_GB: return MONTHS_EN_GB[index];
+    case NL:
+    case NL_BE: return MONTHS_NL[index];
     default:    return MONTHS_EN_US[index];
   }
 }
