@@ -25,4 +25,29 @@ const char* const RELS_NL[] = {
   "vijf voor *$2"
 };
 
+const char* const DAYS_NL[] = {
+  "zon",
+  "man",
+  "din",
+  "woe",
+  "don",
+  "vri",
+  "zat"
+};
+
+const char* const MONTHS_NL[] = {
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "mei",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "okt",
+  "nov",
+  "dec"
+};
+
 const char* date_suffix_NL(int date) { return ""; }

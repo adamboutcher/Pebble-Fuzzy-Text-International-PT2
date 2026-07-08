@@ -44,7 +44,8 @@ Languages
 - English (United States)
 - Español
 - Français
-- Nederlands
+- Nederlands (Nederland)
+- Nederlands (België)
 - Norsk
 - Português
 - Svenska
@@ -126,6 +127,8 @@ Contributors
 - Tomi De Lucca - iOS bug fix and Spanish translation assistance.
 - nighto - Portuguese translation.
 - [Reiner Herrmann][reinerh] - Updates to include dates in the German Translation.
+- [optio][optio] - Dutch date names and Flemish translation.
 
 [iFlips]: https://github.com/iFlips
 [reinerh]: https://github.com/reinerh
+[optio]: https://github.com/optio

@@ -24,6 +24,7 @@
   X(NL,    0x8)        \
   X(PT,    0x9)        \
   X(DE2,   0xA)        \
+  X(NL_BE, 0xB)        \
 
 typedef enum {
   #define X(ENUM, VAL) ENUM = VAL,
