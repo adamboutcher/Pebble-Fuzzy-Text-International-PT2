@@ -8,6 +8,7 @@
 #include "strings-no.h"
 #include "strings-sv.h"
 #include "strings-nl.h"
+#include "strings-nl_BE.h"
 #include "strings-pt.h"
 #include "string.h"
 

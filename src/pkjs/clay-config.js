@@ -63,7 +63,8 @@ module.exports = [
       { "label": "English (United States)", "value": 3  },
       { "label": "Español",                 "value": 4  },
       { "label": "Français",                "value": 5  },
-      { "label": "Nederlands",              "value": 8  },
+      { "label": "Nederlands (Nederland)",  "value": 8  },
+      { "label": "Nederlands (België)",     "value": 11 },
       { "label": "Norsk",                   "value": 6  },
       { "label": "Português",               "value": 9  },
       { "label": "Svenska",                 "value": 7  }
