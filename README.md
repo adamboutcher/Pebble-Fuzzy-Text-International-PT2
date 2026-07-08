@@ -44,11 +44,11 @@ Languages
 - English (United States)
 - Español
 - Français
-- Nederlands
+- Nederlands (Nederland)
+- Nederlands (België)
 - Norsk
 - Português
 - Svenska
-- Vlaams
 
 
 Contributing a Translation
