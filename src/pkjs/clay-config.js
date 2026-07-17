@@ -16,6 +16,12 @@ module.exports = [
     "defaultValue": true
   },
   {
+    "type": "toggle",
+    "messageKey": "animations",
+    "label": "Animations",
+    "defaultValue": true
+  },
+  {
     "type": "select",
     "messageKey": "date_timeout",
     "label": "Date view timeout",

@@ -17,7 +17,8 @@
             "lang",
             "font_size",
             "show_date",
-            "date_timeout"
+            "date_timeout",
+            "animations"
         ],
         "projectType": "native",
         "resources": {

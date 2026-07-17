@@ -27,6 +27,7 @@
 #define FONT_SIZE_KEY     MESSAGE_KEY_font_size
 #define SHOW_DATE_KEY     MESSAGE_KEY_show_date
 #define DATE_TIMEOUT_KEY  MESSAGE_KEY_date_timeout
+#define ANIMATIONS_KEY    MESSAGE_KEY_animations
 
 // Persistent-storage keys, kept independent of the AppMessage keys above and
 // stable across versions. Earlier builds stored settings under these fixed
@@ -38,6 +39,7 @@
 #define PERSIST_FONT_SIZE     3
 #define PERSIST_SHOW_DATE     4
 #define PERSIST_DATE_TIMEOUT  5
+#define PERSIST_ANIMATIONS    6
 
 // Indices into DATE_TIMEOUT_MS[]; 0 = never auto-revert.
 #define DATE_TIMEOUT_NEVER   4
@@ -71,6 +73,7 @@ static bool invert = false;
 static Language lang = EN_US;
 static int font_size = FONT_SIZE_MEDIUM;
 static bool show_date = true;
+static bool animations_enabled = true;
 static int date_timeout_idx = DATE_TIMEOUT_DEFAULT;
 
 static AppTimer *date_timer = NULL;
@@ -215,7 +218,23 @@ static void updateLayerText(TextLayer* layer, char* text)
 static void updateLineTo(Line *line, char *value, int delay)
 {
 	updateLayerText(line->nextLayer, value);
-	makeAnimationsForLayer(line, delay);
+
+	if (animations_enabled) {
+		makeAnimationsForLayer(line, delay);
+	} else {
+		// No animation: place the new line on-screen and push the old one
+		// off-screen immediately.
+		destroy_animation(&line->animation1);
+		destroy_animation(&line->animation2);
+
+		GRect out = layer_get_frame((Layer *)line->currentLayer);
+		out.origin.x = screen_width;
+		layer_set_frame((Layer *)line->currentLayer, out);
+
+		GRect in = layer_get_frame((Layer *)line->nextLayer);
+		in.origin.x = 0;
+		layer_set_frame((Layer *)line->nextLayer, in);
+	}
 
 	// Swap current/next layers
 	TextLayer *tmp = line->nextLayer;
@@ -672,6 +691,13 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context)
 		cancel_date_timer();
 	}
 
+	if ((tup = dict_find(iter, ANIMATIONS_KEY)) != NULL) {
+		animations_enabled = tuple_int(tup) == 1;
+		persist_write_bool(PERSIST_ANIMATIONS, animations_enabled);
+		DBG("Set animations: %u", animations_enabled ? 1 : 0);
+		// Applies from the next line change; no redraw needed here.
+	}
+
 	// A font-size change needs a full relayout (row height + off-screen reset);
 	// a language/view change just needs a redraw with the current layout.
 	if (need_relayout) {
@@ -821,6 +847,11 @@ static void handle_init() {
 	{
 		date_timeout_idx = persist_read_int(PERSIST_DATE_TIMEOUT);
 		DBG("Read date timeout from store: %u", date_timeout_idx);
+	}
+	if (persist_exists(PERSIST_ANIMATIONS))
+	{
+		animations_enabled = persist_read_bool(PERSIST_ANIMATIONS);
+		DBG("Read animations from store: %u", animations_enabled ? 1 : 0);
 	}
 
 	window = window_create();
