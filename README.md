@@ -30,9 +30,12 @@ All settings are configurable from the watchface's settings page — built with 
 | Invert colors | White-on-black / Black-on-white |
 | Show date on shake | On / Off |
 | Date view timeout | 3s / 5s / 8s / 60s / Never |
+| Animations | On / Off |
 | Text alignment | Center / Left / Right |
 | Font size | Small / Medium / Large |
 | Language | See below |
+
+Turning **Animations** off makes lines change instantly instead of sliding, which reduces screen redraws and should help battery life.
 
 
 Languages
