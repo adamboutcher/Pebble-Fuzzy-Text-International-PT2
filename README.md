@@ -35,7 +35,7 @@ All settings are configurable from the watchface's settings page — built with 
 | Font size | Small / Medium / Large |
 | Language | See below |
 
-Turning **Animations** off makes lines change instantly instead of sliding, which reduces screen redraws and should help battery life.
+For the best battery life, turn **Animations** off and set **Show date on shake** to Off — this avoids the sliding redraws and keeps the accelerometer (shake detection) powered down.
 
 
 Languages
