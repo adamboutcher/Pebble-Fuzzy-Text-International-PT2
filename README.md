@@ -35,7 +35,7 @@ All settings are configurable from the watchface's settings page — built with 
 | Font size | Small / Medium / Large |
 | Language | See below |
 
-For the best battery life, turn **Animations** off and set **Show date on shake** to Off — this avoids the sliding redraws and keeps the accelerometer (shake detection) powered down.
+For the best battery life, turn **Animations** off and set **Show date on shake** to Off - this avoids the sliding redraws and keeps the accelerometer (shake detection) powered down.
 
 
 Languages
