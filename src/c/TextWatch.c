@@ -16,12 +16,30 @@
 #define TOP_MARGIN 10
 #define SIDE_MARGIN 2
 
-#define INVERT_KEY 0
-#define TEXT_ALIGN_KEY 1
-#define LANGUAGE_KEY 2
-#define FONT_SIZE_KEY 3
-#define SHOW_DATE_KEY     4
-#define DATE_TIMEOUT_KEY  5
+// Use the SDK-generated message key IDs (from the messageKeys array in
+// package.json) so the C and JS sides agree regardless of how the build
+// numbers them. Sending raw integer keys from JS is unreliable when a
+// project defines messageKeys — the SDK remaps numeric keys through its own
+// key table, scrambling which value lands on which setting.
+#define INVERT_KEY        MESSAGE_KEY_invert
+#define TEXT_ALIGN_KEY    MESSAGE_KEY_text_align
+#define LANGUAGE_KEY      MESSAGE_KEY_lang
+#define FONT_SIZE_KEY     MESSAGE_KEY_font_size
+#define SHOW_DATE_KEY     MESSAGE_KEY_show_date
+#define DATE_TIMEOUT_KEY  MESSAGE_KEY_date_timeout
+#define ANIMATIONS_KEY    MESSAGE_KEY_animations
+
+// Persistent-storage keys, kept independent of the AppMessage keys above and
+// stable across versions. Earlier builds stored settings under these fixed
+// 0-5 values, so keeping them lets upgrading users retain their saved settings
+// (the AppMessage keys are now SDK-generated IDs, which would otherwise reset).
+#define PERSIST_INVERT        0
+#define PERSIST_TEXT_ALIGN    1
+#define PERSIST_LANGUAGE      2
+#define PERSIST_FONT_SIZE     3
+#define PERSIST_SHOW_DATE     4
+#define PERSIST_DATE_TIMEOUT  5
+#define PERSIST_ANIMATIONS    6
 
 // Indices into DATE_TIMEOUT_MS[]; 0 = never auto-revert.
 #define DATE_TIMEOUT_NEVER   4
@@ -50,14 +68,12 @@ static const uint32_t DATE_TIMEOUT_MS[] = { 3000, 5000, 8000, 60000, 0 };
 // We can add a new word to a line if there are at least this many characters free after
 #define LINE_APPEND_LIMIT (LINE_LENGTH - LINE_APPEND_MARGIN)
 
-static AppSync sync;
-static uint8_t sync_buffer[128];
-
 static int text_align = TEXT_ALIGN_CENTER;
 static bool invert = false;
 static Language lang = EN_US;
 static int font_size = FONT_SIZE_MEDIUM;
 static bool show_date = true;
+static bool animations_enabled = true;
 static int date_timeout_idx = DATE_TIMEOUT_DEFAULT;
 
 static AppTimer *date_timer = NULL;
@@ -202,7 +218,23 @@ static void updateLayerText(TextLayer* layer, char* text)
 static void updateLineTo(Line *line, char *value, int delay)
 {
 	updateLayerText(line->nextLayer, value);
-	makeAnimationsForLayer(line, delay);
+
+	if (animations_enabled) {
+		makeAnimationsForLayer(line, delay);
+	} else {
+		// No animation: place the new line on-screen and push the old one
+		// off-screen immediately.
+		destroy_animation(&line->animation1);
+		destroy_animation(&line->animation2);
+
+		GRect out = layer_get_frame((Layer *)line->currentLayer);
+		out.origin.x = screen_width;
+		layer_set_frame((Layer *)line->currentLayer, out);
+
+		GRect in = layer_get_frame((Layer *)line->nextLayer);
+		in.origin.x = 0;
+		layer_set_frame((Layer *)line->nextLayer, in);
+	}
 
 	// Swap current/next layers
 	TextLayer *tmp = line->nextLayer;
@@ -560,92 +592,129 @@ static void click_config_provider(ClickConfig **config, Window *window) {
 
 #endif
 
-static void sync_error_callback(DictionaryResult dict_error, AppMessageResult app_message_error, void *context)
+// Read an integer Tuple regardless of how the sender encoded it. Clay's
+// getSettings() returns select values as STRINGS, so sendAppMessage delivers
+// them as TUPLE_CSTRING — reading those as raw ints yields ASCII garbage (e.g.
+// "3" -> 51), which then indexes lang_strings[] out of bounds and faults.
+// Parse strings here, and read ints at their actual width/sign.
+static int32_t tuple_int(const Tuple *tup)
 {
-	DBG("App Message Sync Error: %d", app_message_error);
+	if (tup->type == TUPLE_CSTRING) {
+		const char *s = tup->value->cstring;
+		if (!s) { return 0; }
+		bool neg = (*s == '-');
+		if (neg) { s++; }
+		int32_t n = 0;
+		while (*s >= '0' && *s <= '9') {
+			n = n * 10 + (*s - '0');
+			s++;
+		}
+		return neg ? -n : n;
+	}
+	switch (tup->length) {
+		case 1: return (tup->type == TUPLE_INT) ? (int32_t) tup->value->int8  : (int32_t) tup->value->uint8;
+		case 2: return (tup->type == TUPLE_INT) ? (int32_t) tup->value->int16 : (int32_t) tup->value->uint16;
+		default: return (tup->type == TUPLE_INT) ? (int32_t) tup->value->int32 : (int32_t) tup->value->uint32;
+	}
 }
 
-static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tuple, const Tuple* old_tuple, void* context) {
-	GTextAlignment alignment;
-	switch (key) {
-		case TEXT_ALIGN_KEY:
-			text_align = new_tuple->value->uint8;
-			persist_write_int(TEXT_ALIGN_KEY, text_align);
-			DBG("Set text alignment: %u", text_align);
+static void inbox_received_handler(DictionaryIterator *iter, void *context)
+{
+	bool need_redraw = false;
+	bool need_relayout = false;
+	Tuple *tup;
 
-			alignment = lookup_text_alignment(text_align);
-			for (int i = 0; i < NUM_LINES; i++)
-			{
-				text_layer_set_text_alignment(lines[i].currentLayer, alignment);
-				text_layer_set_text_alignment(lines[i].nextLayer, alignment);
-				layer_mark_dirty(text_layer_get_layer(lines[i].currentLayer));
-				layer_mark_dirty(text_layer_get_layer(lines[i].nextLayer));
-			}
-			break;
-		case INVERT_KEY:
-			invert = new_tuple->value->uint8 == 1;
-			persist_write_bool(INVERT_KEY, invert);
-			DBG("Set invert: %u", invert ? 1 : 0);
+	if ((tup = dict_find(iter, TEXT_ALIGN_KEY)) != NULL) {
+		text_align = tuple_int(tup);
+		persist_write_int(PERSIST_TEXT_ALIGN, text_align);
+		DBG("Set text alignment: %d", text_align);
 
-			window_set_background_color(window, bg_color());
-			for (int j = 0; j < NUM_LINES; j++) {
-				text_layer_set_text_color(lines[j].currentLayer, fg_color());
-				text_layer_set_text_color(lines[j].nextLayer, fg_color());
-				layer_mark_dirty(text_layer_get_layer(lines[j].currentLayer));
-				layer_mark_dirty(text_layer_get_layer(lines[j].nextLayer));
-			}
-			break;
-		case LANGUAGE_KEY:
-			lang = (Language) new_tuple->value->uint8;
-			persist_write_int(LANGUAGE_KEY, lang);
-			DBG("Set language: %u", lang);
+		GTextAlignment alignment = lookup_text_alignment(text_align);
+		for (int i = 0; i < NUM_LINES; i++) {
+			text_layer_set_text_alignment(lines[i].currentLayer, alignment);
+			text_layer_set_text_alignment(lines[i].nextLayer, alignment);
+			layer_mark_dirty(text_layer_get_layer(lines[i].currentLayer));
+			layer_mark_dirty(text_layer_get_layer(lines[i].nextLayer));
+		}
+	}
 
-			if (t)
-			{
-				display_time(t);
-			}
-			break;
-		case FONT_SIZE_KEY:
-			font_size = new_tuple->value->uint8;
-			persist_write_int(FONT_SIZE_KEY, font_size);
-			DBG("Set font size: %u", font_size);
+	if ((tup = dict_find(iter, INVERT_KEY)) != NULL) {
+		invert = tuple_int(tup) == 1;
+		persist_write_bool(PERSIST_INVERT, invert);
+		DBG("Set invert: %u", invert ? 1 : 0);
 
-			row_height = compute_row_height();
-			for (int i = 0; i < NUM_LINES; i++) {
-				destroy_animation(&lines[i].animation1);
-				destroy_animation(&lines[i].animation2);
-			}
-			if (t) {
-				display_initial_time(t);
-			}
-			for (int i = 0; i < NUM_LINES; i++) {
-				GRect rect = layer_get_frame((Layer *)lines[i].nextLayer);
-				rect.origin.x = screen_width;
-				layer_set_frame((Layer *)lines[i].nextLayer, rect);
-			}
-			break;
-		case SHOW_DATE_KEY:
-			show_date = new_tuple->value->uint8 == 1;
-			persist_write_bool(SHOW_DATE_KEY, show_date);
-			DBG("Set show date: %u", show_date ? 1 : 0);
-			if (show_date) {
-				accel_tap_service_subscribe(tap_handler);
-			} else {
-				accel_tap_service_unsubscribe();
-				cancel_date_timer();
-				if (!showTime) {
-					showTime = true;
-					display_time(t);
-				}
-			}
-			break;
-		case DATE_TIMEOUT_KEY:
-			date_timeout_idx = new_tuple->value->uint8;
-			persist_write_int(DATE_TIMEOUT_KEY, date_timeout_idx);
-			DBG("Set date timeout: %u", date_timeout_idx);
-			// Cancel any running timer; new timeout applies from the next shake.
+		window_set_background_color(window, bg_color());
+		for (int j = 0; j < NUM_LINES; j++) {
+			text_layer_set_text_color(lines[j].currentLayer, fg_color());
+			text_layer_set_text_color(lines[j].nextLayer, fg_color());
+			layer_mark_dirty(text_layer_get_layer(lines[j].currentLayer));
+			layer_mark_dirty(text_layer_get_layer(lines[j].nextLayer));
+		}
+	}
+
+	if ((tup = dict_find(iter, LANGUAGE_KEY)) != NULL) {
+		lang = (Language) tuple_int(tup);
+		persist_write_int(PERSIST_LANGUAGE, lang);
+		DBG("Set language: %d", lang);
+		need_redraw = true;
+	}
+
+	if ((tup = dict_find(iter, FONT_SIZE_KEY)) != NULL) {
+		font_size = tuple_int(tup);
+		persist_write_int(PERSIST_FONT_SIZE, font_size);
+		DBG("Set font size: %d", font_size);
+		row_height = compute_row_height();
+		need_relayout = true;
+	}
+
+	if ((tup = dict_find(iter, SHOW_DATE_KEY)) != NULL) {
+		show_date = tuple_int(tup) == 1;
+		persist_write_bool(PERSIST_SHOW_DATE, show_date);
+		DBG("Set show date: %u", show_date ? 1 : 0);
+		if (show_date) {
+			accel_tap_service_subscribe(tap_handler);
+		} else {
+			accel_tap_service_unsubscribe();
 			cancel_date_timer();
-			break;
+			if (!showTime) {
+				showTime = true;
+				need_redraw = true;
+			}
+		}
+	}
+
+	if ((tup = dict_find(iter, DATE_TIMEOUT_KEY)) != NULL) {
+		date_timeout_idx = tuple_int(tup);
+		persist_write_int(PERSIST_DATE_TIMEOUT, date_timeout_idx);
+		DBG("Set date timeout: %d", date_timeout_idx);
+		// Cancel any running timer; new timeout applies from the next shake.
+		cancel_date_timer();
+	}
+
+	if ((tup = dict_find(iter, ANIMATIONS_KEY)) != NULL) {
+		animations_enabled = tuple_int(tup) == 1;
+		persist_write_bool(PERSIST_ANIMATIONS, animations_enabled);
+		DBG("Set animations: %u", animations_enabled ? 1 : 0);
+		// Applies from the next line change; no redraw needed here.
+	}
+
+	// A font-size change needs a full relayout (row height + off-screen reset);
+	// a language/view change just needs a redraw with the current layout.
+	if (need_relayout) {
+		for (int i = 0; i < NUM_LINES; i++) {
+			destroy_animation(&lines[i].animation1);
+			destroy_animation(&lines[i].animation2);
+		}
+		if (t) {
+			display_initial_time(t);
+		}
+		for (int i = 0; i < NUM_LINES; i++) {
+			GRect rect = layer_get_frame((Layer *)lines[i].nextLayer);
+			rect.origin.x = screen_width;
+			layer_set_frame((Layer *)lines[i].nextLayer, rect);
+		}
+	} else if (need_redraw && t) {
+		display_time(t);
 	}
 }
 
@@ -731,23 +800,10 @@ static void window_load(Window *window)
 	time(&raw_time);
 	t_buf = *localtime(&raw_time);
 	display_initial_time(t);
-
-	Tuplet initial_values[] = {
-		TupletInteger(TEXT_ALIGN_KEY,    (uint8_t) text_align),
-		TupletInteger(INVERT_KEY,        (uint8_t) invert ? 1 : 0),
-		TupletInteger(LANGUAGE_KEY,      (uint8_t) lang),
-		TupletInteger(FONT_SIZE_KEY,     (uint8_t) font_size),
-		TupletInteger(SHOW_DATE_KEY,     (uint8_t) show_date ? 1 : 0),
-		TupletInteger(DATE_TIMEOUT_KEY,  (uint8_t) date_timeout_idx)
-	};
-
-	app_sync_init(&sync, sync_buffer, sizeof(sync_buffer), initial_values, ARRAY_LENGTH(initial_values),
-			sync_tuple_changed_callback, sync_error_callback, NULL);
 }
 
 static void window_unload(Window *window)
 {
-	app_sync_deinit(&sync);
 	cancel_date_timer();
 
 	// Free layers
@@ -762,35 +818,40 @@ static void window_unload(Window *window)
 
 static void handle_init() {
 	// Load settings from persistent storage
-	if (persist_exists(TEXT_ALIGN_KEY))
+	if (persist_exists(PERSIST_TEXT_ALIGN))
 	{
-		text_align = persist_read_int(TEXT_ALIGN_KEY);
+		text_align = persist_read_int(PERSIST_TEXT_ALIGN);
 		DBG("Read text alignment from store: %u", text_align);
 	}
-	if (persist_exists(INVERT_KEY))
+	if (persist_exists(PERSIST_INVERT))
 	{
-		invert = persist_read_bool(INVERT_KEY);
+		invert = persist_read_bool(PERSIST_INVERT);
 		DBG("Read invert from store: %u", invert ? 1 : 0);
 	}
-	if (persist_exists(LANGUAGE_KEY))
+	if (persist_exists(PERSIST_LANGUAGE))
 	{
-		lang = (Language) persist_read_int(LANGUAGE_KEY);
+		lang = (Language) persist_read_int(PERSIST_LANGUAGE);
 		DBG("Read language from store: %u", lang);
 	}
-	if (persist_exists(FONT_SIZE_KEY))
+	if (persist_exists(PERSIST_FONT_SIZE))
 	{
-		font_size = persist_read_int(FONT_SIZE_KEY);
+		font_size = persist_read_int(PERSIST_FONT_SIZE);
 		DBG("Read font size from store: %u", font_size);
 	}
-	if (persist_exists(SHOW_DATE_KEY))
+	if (persist_exists(PERSIST_SHOW_DATE))
 	{
-		show_date = persist_read_bool(SHOW_DATE_KEY);
+		show_date = persist_read_bool(PERSIST_SHOW_DATE);
 		DBG("Read show date from store: %u", show_date ? 1 : 0);
 	}
-	if (persist_exists(DATE_TIMEOUT_KEY))
+	if (persist_exists(PERSIST_DATE_TIMEOUT))
 	{
-		date_timeout_idx = persist_read_int(DATE_TIMEOUT_KEY);
+		date_timeout_idx = persist_read_int(PERSIST_DATE_TIMEOUT);
 		DBG("Read date timeout from store: %u", date_timeout_idx);
+	}
+	if (persist_exists(PERSIST_ANIMATIONS))
+	{
+		animations_enabled = persist_read_bool(PERSIST_ANIMATIONS);
+		DBG("Read animations from store: %u", animations_enabled ? 1 : 0);
 	}
 
 	window = window_create();
@@ -800,20 +861,22 @@ static void handle_init() {
 		.appear = window_appear
 	});
 
-	// Initialize message queue
-	const int inbound_size = 64;
-	const int outbound_size = 64;
-	app_message_open(inbound_size, outbound_size);
-
 	const bool animated = true;
 	window_stack_push(window, animated);
-  
+
 	if (show_date) {
 		accel_tap_service_subscribe(tap_handler);
 	}
 
 	// Subscribe to minute ticks
 	tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
+
+	// Register the inbox handler and open AppMessage AFTER the window is pushed,
+	// so window_load has created the text layers before any queued settings
+	// message can be delivered (the handler touches those layers). Use platform
+	// maximum buffers so the full settings blob from Clay always fits.
+	app_message_register_inbox_received(inbox_received_handler);
+	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 
 #if DEBUG
 	// Button functionality
@@ -833,4 +896,3 @@ int main(void)
 	app_event_loop();
 	handle_deinit();
 }
-
