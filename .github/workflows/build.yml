@@ -55,8 +55,10 @@ jobs:
         if: steps.cache-sdk.outputs.cache-hit != 'true'
         run: |
           mkdir -p "$SDK_DIR"
-          wget -q -O - "https://developer.rebble.io/s3.amazonaws.com/assets.getpebble.com/pebble-tool/pebble-sdk-${SDK_TOOL_VERSION}-linux64.tar.bz2" \
-            | tar xj --strip-components=1 -C "$SDK_DIR"
+          wget --tries=3 --retry-connrefused -O /tmp/pebble-tool.tar.bz2 \
+            "https://developer.rebble.io/s3.amazonaws.com/assets.getpebble.com/pebble-tool/pebble-sdk-${SDK_TOOL_VERSION}-linux64.tar.bz2"
+          tar xj --strip-components=1 -C "$SDK_DIR" -f /tmp/pebble-tool.tar.bz2
+          rm /tmp/pebble-tool.tar.bz2
 
       - name: Install pebble-tool requirements
         if: steps.cache-sdk.outputs.cache-hit != 'true'
@@ -70,7 +72,7 @@ jobs:
       - name: Download SDK core
         if: steps.cache-sdk.outputs.cache-hit != 'true'
         run: |
-          wget -q -O "$SDK_DIR/sdk-core-${SDK_CORE_VERSION}.tar.bz2" \
+          wget --tries=3 --retry-connrefused -O "$SDK_DIR/sdk-core-${SDK_CORE_VERSION}.tar.bz2" \
             "https://github.com/aveao/PebbleArchive/raw/master/SDKCores/sdk-core-${SDK_CORE_VERSION}.tar.bz2"
 
       - name: Install SDK core
