@@ -11,14 +11,7 @@ concurrency:
 jobs:
   build:
     name: Build watchface
-    runs-on: ubuntu-22.04
-    container:
-      image: python:2.7.18-buster
-
-    env:
-      SDK_DIR: sdk
-      SDK_TOOL_VERSION: "4.5"
-      SDK_CORE_VERSION: "4.3"
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -27,67 +20,43 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "16"
+          node-version: "20"
 
       - name: Install system dependencies
         run: |
-          # buster is EOL: repoint apt at the archive, and skip the
-          # valid-until check since archived Release files are stale.
-          sed -i \
-            -e 's|deb.debian.org|archive.debian.org|g' \
-            -e 's|security.debian.org|archive.debian.org|g' \
-            /etc/apt/sources.list
-          apt-get -o Acquire::Check-Valid-Until=false update
-          apt-get install -y --no-install-recommends \
-            wget python-pip python2.7-dev \
-            libsdl1.2debian libfdt1 libpixman-1-0 \
-            libfreetype6 libx11-6 rlwrap
-          pip install virtualenv
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libsdl1.2debian libfdt1
 
-      - name: Cache Pebble SDK
-        id: cache-sdk
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install pebble-tool
+        run: |
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/uv" tool install --force pebble-tool --python 3.13
+
+      - name: Install jshint
+        run: npm install -g jshint
+
+      - name: Cache Pebble SDK core
         uses: actions/cache@v4
         with:
-          path: ${{ env.SDK_DIR }}
-          key: pebble-sdk-${{ env.SDK_TOOL_VERSION }}-core-${{ env.SDK_CORE_VERSION }}
+          path: ~/.pebble-sdk
+          key: pebble-sdk-core-${{ runner.os }}-v1
 
-      - name: Download pebble-tool
-        if: steps.cache-sdk.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p "$SDK_DIR"
-          wget --tries=3 --retry-connrefused -O /tmp/pebble-tool.tar.bz2 \
-            "https://developer.rebble.io/s3.amazonaws.com/assets.getpebble.com/pebble-tool/pebble-sdk-${SDK_TOOL_VERSION}-linux64.tar.bz2"
-          tar xj --strip-components=1 -C "$SDK_DIR" -f /tmp/pebble-tool.tar.bz2
-          rm /tmp/pebble-tool.tar.bz2
-
-      - name: Install pebble-tool requirements
-        if: steps.cache-sdk.outputs.cache-hit != 'true'
-        run: |
-          cd "$SDK_DIR"
-          virtualenv .env
-          . .env/bin/activate
-          pip install -r requirements.txt
-          deactivate
-
-      - name: Download SDK core
-        if: steps.cache-sdk.outputs.cache-hit != 'true'
-        run: |
-          wget --tries=3 --retry-connrefused -O "$SDK_DIR/sdk-core-${SDK_CORE_VERSION}.tar.bz2" \
-            "https://github.com/aveao/PebbleArchive/raw/master/SDKCores/sdk-core-${SDK_CORE_VERSION}.tar.bz2"
-
-      - name: Install SDK core
+      - name: Install Pebble SDK core
         run: |
           mkdir -p ~/.pebble-sdk
           touch ~/.pebble-sdk/NO_TRACKING
-          if [ ! -d ~/.pebble-sdk/SDKs/${SDK_CORE_VERSION} ]; then
-            "$SDK_DIR/bin/pebble" sdk install "$SDK_DIR/sdk-core-${SDK_CORE_VERSION}.tar.bz2"
-          fi
+          pebble sdk install latest
+          pebble sdk activate latest
 
       - name: Install npm dependencies
         run: npm install
 
       - name: Build
-        run: yes | "$SDK_DIR/bin/pebble" build
+        run: pebble build
 
       - name: Upload .pbw artifact
         if: always()
