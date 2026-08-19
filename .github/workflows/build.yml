@@ -50,7 +50,7 @@ jobs:
           mkdir -p ~/.pebble-sdk
           touch ~/.pebble-sdk/NO_TRACKING
           pebble sdk install latest
-          pebble sdk activate latest
+          pebble sdk activate "$(ls ~/.pebble-sdk/SDKs | sort -V | tail -1)"
 
       - name: Install npm dependencies
         run: npm install
