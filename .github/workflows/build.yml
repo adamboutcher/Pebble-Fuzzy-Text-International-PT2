@@ -63,12 +63,14 @@ jobs:
         if: failure()
         run: |
           SDK=~/.pebble-sdk/SDKs/current/sdk-core/pebble
-          echo "--- pebble_sdk_platform.py ---"
-          cat "$SDK/common/tools/pebble_sdk_platform.py" || true
-          echo "--- grep PLATFORM assignment across common/tools ---"
-          grep -rn "PLATFORM" "$SDK/common/tools/" || true
-          echo "--- gabbro/flint platform files ---"
-          find "$SDK" -maxdepth 3 -iname "*platform*" || true
+          echo "--- env.PLATFORM assignment sites (excluding vendored waf3) ---"
+          grep -rn --include="*.py" -B3 -A3 '\.PLATFORM *=' "$SDK" \
+            | grep -v '/\.waf3-' || true
+          echo "--- files referencing PLATFORM_NAME ---"
+          grep -rln --include="*.py" 'PLATFORM_NAME' "$SDK" \
+            | grep -v '/\.waf3-' || true
+          echo "--- top-level wscript / configure files ---"
+          find "$SDK/.." -maxdepth 1 -iname "wscript*" -exec cat {} \;
 
       - name: Upload .pbw artifact
         if: always()
