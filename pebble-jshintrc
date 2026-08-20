@@ -11,6 +11,9 @@
   "browser": true,
   "devel": true,
 
+  // pkjs uses CommonJS modules (require/module.exports) via enableMultiJS/webpack
+  "node": true,
+
   // Do not mess with standard JavaScript objects (Array, Date, etc)
   "freeze": true,
 
