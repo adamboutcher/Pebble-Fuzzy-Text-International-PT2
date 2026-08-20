@@ -63,16 +63,12 @@ jobs:
         if: failure()
         run: |
           ROOT=~/.pebble-sdk/SDKs/current/sdk-core
-          echo "--- all .py files under common/tools ---"
-          find "$ROOT/pebble/common/tools" -maxdepth 1 -iname "*.py" || true
-          echo "--- PLATFORM read/write sites, dot or bracket form, whole sdk-core ---"
-          grep -rn --include="*.py" -B3 -A3 \
+          echo "--- pebble_sdk*.py tool files anywhere (including inside .waf3-*, excluding its nested waflib/) ---"
+          find "$ROOT" -path "*/waflib" -prune -o -iname "pebble_sdk*.py" -print
+          echo "--- PLATFORM read/write sites, excluding only the vendored waflib/ subtree ---"
+          grep -rn --include="*.py" -B3 -A5 \
             -e '\.PLATFORM\b' -e "\[.PLATFORM.\]" "$ROOT" \
-            | grep -v '/\.waf3-' || true
-          echo "--- wscript files anywhere under sdk-core (top 2 levels) ---"
-          find "$ROOT" -maxdepth 2 -iname "wscript*" || true
-          echo "--- contents of pebble/wscript if present ---"
-          cat "$ROOT/pebble/wscript" 2>/dev/null || echo "(not found)"
+            | grep -v '/waflib/' || true
 
       - name: Upload .pbw artifact
         if: always()
