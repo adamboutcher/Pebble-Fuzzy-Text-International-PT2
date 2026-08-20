@@ -62,15 +62,17 @@ jobs:
       - name: Debug - dump platform config
         if: failure()
         run: |
-          SDK=~/.pebble-sdk/SDKs/current/sdk-core/pebble
-          echo "--- env.PLATFORM assignment sites (excluding vendored waf3) ---"
-          grep -rn --include="*.py" -B3 -A3 '\.PLATFORM *=' "$SDK" \
+          ROOT=~/.pebble-sdk/SDKs/current/sdk-core
+          echo "--- all .py files under common/tools ---"
+          find "$ROOT/pebble/common/tools" -maxdepth 1 -iname "*.py" || true
+          echo "--- PLATFORM read/write sites, dot or bracket form, whole sdk-core ---"
+          grep -rn --include="*.py" -B3 -A3 \
+            -e '\.PLATFORM\b' -e "\[.PLATFORM.\]" "$ROOT" \
             | grep -v '/\.waf3-' || true
-          echo "--- files referencing PLATFORM_NAME ---"
-          grep -rln --include="*.py" 'PLATFORM_NAME' "$SDK" \
-            | grep -v '/\.waf3-' || true
-          echo "--- top-level wscript / configure files ---"
-          find "$SDK/.." -maxdepth 1 -iname "wscript*" -exec cat {} \;
+          echo "--- wscript files anywhere under sdk-core (top 2 levels) ---"
+          find "$ROOT" -maxdepth 2 -iname "wscript*" || true
+          echo "--- contents of pebble/wscript if present ---"
+          cat "$ROOT/pebble/wscript" 2>/dev/null || echo "(not found)"
 
       - name: Upload .pbw artifact
         if: always()
