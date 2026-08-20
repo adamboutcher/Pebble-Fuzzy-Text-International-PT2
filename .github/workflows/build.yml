@@ -39,9 +39,6 @@ jobs:
       - name: Install jshint
         run: npm install -g jshint
 
-      - name: List available Pebble SDKs
-        run: pebble sdk list
-
       - name: Cache Pebble SDK core
         uses: actions/cache@v4
         with:
