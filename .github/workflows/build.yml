@@ -63,12 +63,10 @@ jobs:
         if: failure()
         run: |
           EXTRAS=$(find ~/.pebble-sdk/SDKs/current/sdk-core -type d -path "*/waflib/extras")
-          echo "extras dir: $EXTRAS"
-          echo "--- all .py files in waflib/extras ---"
-          ls -la "$EXTRAS"
-          echo "--- PLATFORM read/write sites inside waflib/extras ---"
-          grep -rn --include="*.py" -B3 -A6 \
-            -e '\.PLATFORM\b' -e "\[.PLATFORM.\]" "$EXTRAS" || true
+          echo "--- pebble_sdk.py ---"
+          cat "$EXTRAS/pebble_sdk.py"
+          echo "--- pebble_sdk_common.py ---"
+          cat "$EXTRAS/pebble_sdk_common.py"
 
       - name: Upload .pbw artifact
         if: always()
