@@ -1,0 +1,68 @@
+name: Build
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build watchface
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libsdl1.2debian libfdt1
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install pebble-tool
+        run: |
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/uv" tool install --force pebble-tool --python 3.13
+
+      - name: Install jshint
+        run: npm install -g jshint
+
+      - name: Cache Pebble SDK core
+        uses: actions/cache@v4
+        with:
+          path: ~/.pebble-sdk
+          key: pebble-sdk-core-${{ runner.os }}-v1
+
+      - name: Install Pebble SDK core
+        run: |
+          mkdir -p ~/.pebble-sdk
+          touch ~/.pebble-sdk/NO_TRACKING
+          if [ ! -e ~/.pebble-sdk/SDKs/current/sdk-core/manifest.json ]; then
+            pebble sdk install latest
+          fi
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build
+        run: pebble build
+
+      - name: Upload .pbw artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pebble-app
+          path: build/*.pbw
+          if-no-files-found: warn

@@ -13,11 +13,19 @@ def configure(ctx):
 def build(ctx):
     ctx.load('pebble_sdk')
 
-    jshint(['--config', 'pebble-jshintrc', 'src/pkjs/pebble-js-app.js'])
+    jshint(['--config', 'pebble-jshintrc', 'src/pkjs/index.js', 'src/pkjs/clay-config.js'])
 
-    ctx.pbl_program(source=ctx.path.ant_glob('src/**/*.c'),
-                    target='pebble-app.elf')
+    binaries = []
+    cached_env = ctx.env
+    for platform in ctx.env.TARGET_PLATFORMS:
+        ctx.env = ctx.all_envs[platform]
+        ctx.set_group(ctx.env.PLATFORM_NAME)
+        app_elf = '{}/pebble-app.elf'.format(ctx.env.BUILD_DIR)
+        ctx.pbl_build(source=ctx.path.ant_glob('src/c/**/*.c'), target=app_elf, bin_type='app')
+        binaries.append({'platform': platform, 'app_elf': app_elf})
+    ctx.env = cached_env
 
-    ctx.pbl_bundle(elf='pebble-app.elf',
-                   js=[ctx.path.find_resource('src/pkjs/config-html.js'),
-                       ctx.path.find_resource('src/pkjs/pebble-js-app.js')])
+    ctx.set_group('bundle')
+    ctx.pbl_bundle(binaries=binaries,
+                   js=ctx.path.ant_glob('src/pkjs/**/*.js'),
+                   js_entry_file='src/pkjs/index.js')
