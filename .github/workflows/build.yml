@@ -59,6 +59,17 @@ jobs:
       - name: Build
         run: pebble build
 
+      - name: Debug - dump platform config
+        if: failure()
+        run: |
+          SDK=~/.pebble-sdk/SDKs/current/sdk-core/pebble
+          echo "--- pebble_sdk_platform.py ---"
+          cat "$SDK/common/tools/pebble_sdk_platform.py" || true
+          echo "--- grep PLATFORM assignment across common/tools ---"
+          grep -rn "PLATFORM" "$SDK/common/tools/" || true
+          echo "--- gabbro/flint platform files ---"
+          find "$SDK" -maxdepth 3 -iname "*platform*" || true
+
       - name: Upload .pbw artifact
         if: always()
         uses: actions/upload-artifact@v4
